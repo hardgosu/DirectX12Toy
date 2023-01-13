@@ -1,5 +1,8 @@
 #include "DirectXToy.h"
 
+extern HWND g_hWnd;
+extern uint32_t g_DisplayWidth;
+extern uint32_t g_DisplayHeight;
 
 void DirectXToy::Startup()
 {
@@ -74,6 +77,8 @@ void DirectXToy::Update(float deltaT)
 {
 	elapsedTime_ = deltaT;
 
+	//Tuning, Tool, ETC..
+	fpsViewer_.Show(g_hWnd, elapsedTime_);
 	//Input
 	//Logic(Interrupt)
 	RenderScene();
@@ -87,4 +92,19 @@ void DirectXToy::RenderScene()
 bool DirectXToy::IsDone()
 {
 	return isDone_;
+}
+
+void DirectXToy::FPSViewer::Show(HWND hWnd, float elapsedTime)
+{
+	++counter_;
+	timer_ += elapsedTime;
+	if (timer_ >= Period)
+	{
+		std::wstring fpsStr = L"FPS : " + std::to_wstring(counter_);
+
+		SetWindowText(hWnd, fpsStr.c_str());
+
+		timer_ = 0;
+		counter_ = 0;
+	}
 }

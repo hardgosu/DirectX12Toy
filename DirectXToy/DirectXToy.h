@@ -30,4 +30,13 @@ private:
 	//ShadowCamera m_SunShadowCamera;
 	float elapsedTime_{};
 	bool isDone_{ false };
+
+	struct FPSViewer
+	{
+		static constexpr float Period = 1.0f;
+		float timer_{};
+		unsigned int counter_{};
+		void Show(HWND hWnd, float elapsedTime); //to window title
+	};
+	FPSViewer fpsViewer_;
 };

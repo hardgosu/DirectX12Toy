@@ -86,6 +86,7 @@ int RunApplication(IGameApp& app, const wchar_t* className, HINSTANCE hInst, int
 		UINT64 end{};
 		QueryPerformanceCounter(reinterpret_cast<LARGE_INTEGER*>(&end));
 		float frameTime = (end - begin) * secondsPerFrequency;
+		begin = end;
 		app.Update(frameTime);
 	} while (!app.IsDone());	// Returns false to quit loop
 
