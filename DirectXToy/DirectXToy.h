@@ -67,6 +67,7 @@ private:
 		SkinnedMeshPS,
 	};
 	using ShaderMap = std::map<Shader, D3D12_SHADER_BYTECODE>;
+	ShaderMap shaderMap_;
 
 	enum class InputElement
 	{
@@ -76,6 +77,7 @@ private:
 
 	using InputElementsMap = std::map<InputElement, std::vector<D3D12_INPUT_ELEMENT_DESC>>;
 	InputElementsMap inputElementsMap_;
+
 
 	//ModelInstance m_ModelInst;
 	//ShadowCamera m_SunShadowCamera;
