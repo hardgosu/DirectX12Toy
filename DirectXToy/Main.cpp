@@ -61,13 +61,14 @@ int RunApplication(IGameApp& app, const wchar_t* className, HINSTANCE hInst, int
 	app.Startup();
 
 	ShowWindow(g_hWnd, nCmdShow/*SW_SHOWDEFAULT*/);
-	UINT64 frequency{};
-	QueryPerformanceFrequency(reinterpret_cast<LARGE_INTEGER*>(&frequency));
-	const double secondsPerFrequency = 1.0 / frequency;
+
+	UINT64 countsPerSec;
+	QueryPerformanceFrequency(reinterpret_cast<LARGE_INTEGER*>(&countsPerSec));
+	const double secondsPerFrequency = 1.0 / countsPerSec;
+	double frameTime{};
 
 	UINT64 begin{};
 	QueryPerformanceCounter(reinterpret_cast<LARGE_INTEGER*>(&begin));
-
 	do
 	{
 		MSG msg = {};
@@ -80,13 +81,15 @@ int RunApplication(IGameApp& app, const wchar_t* className, HINSTANCE hInst, int
 			if (msg.message == WM_QUIT)
 				done = true;
 		}
-
 		if (done)
 			break;
+
+		//Tick
 		UINT64 end{};
 		QueryPerformanceCounter(reinterpret_cast<LARGE_INTEGER*>(&end));
-		float frameTime = (end - begin) * secondsPerFrequency;
+		frameTime = (end - begin) * secondsPerFrequency;
 		begin = end;
+
 		app.Update(frameTime);
 	} while (!app.IsDone());	// Returns false to quit loop
 
