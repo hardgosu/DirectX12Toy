@@ -142,7 +142,7 @@ void DirectXToy::Startup()
 			"g\n";
 		//staticMesh.VS = D3D12_
 		//staticMesh.PS
-
+		CompileShader(L"Shader/shaders.hlsl", nullptr, "VSInstancing", "vs_5_1");
 
 	};
 
