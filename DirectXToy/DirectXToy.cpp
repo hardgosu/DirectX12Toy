@@ -93,13 +93,23 @@ void DirectXToy::Startup()
 	cbvHandleIncrementSize_ = device_->GetDescriptorHandleIncrementSize(heapDesc.Type);
 
 	using RootParameter = CD3DX12_ROOT_PARAMETER; //signature 1.0
-	constexpr unsigned NumRootParameter = 4;
+	constexpr unsigned NumRootParameter = 10;
 	std::array<RootParameter, NumRootParameter> parameters;
 
 	parameters[0].InitAsConstantBufferView(0);
-	parameters[1].InitAsShaderResourceView(0);
-	parameters[2].InitAsShaderResourceView(1);
-	parameters[3].InitAsConstants(32, 1);
+	parameters[1].InitAsConstantBufferView(1);
+	parameters[2].InitAsConstantBufferView(2);
+	parameters[3].InitAsConstantBufferView(3);
+	parameters[4].InitAsShaderResourceView(0, 1);
+	parameters[5].InitAsShaderResourceView(1, 1);
+	parameters[6].InitAsShaderResourceView(0);
+	parameters[7].InitAsShaderResourceView(1);
+	CD3DX12_DESCRIPTOR_RANGE texTable1;
+	texTable1.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 2, 0);
+	CD3DX12_DESCRIPTOR_RANGE texTable2;
+	texTable2.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 40, 3, 0);
+	parameters[8].InitAsDescriptorTable(1, &texTable1);
+	parameters[9].InitAsDescriptorTable(1, &texTable2);
 
 	auto staticSamplers = GetStaticSamplers();
 
@@ -112,23 +122,22 @@ void DirectXToy::Startup()
 	{
 		std::vector<D3D12_INPUT_ELEMENT_DESC> staticMesh
 		{
-			{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-			{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-			{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-			{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+			{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+			{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+			{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+			{ "TANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 32, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
 		};
+		outputMap[InputElement::StaticMesh] = std::move(staticMesh);
 	};
 
 	auto buildShader = [](ShaderMap& outputMap)
 	{
-		auto vsBlob = CompileShader(L"SamplePath.hlsl", nullptr, "VSMain", "vs_5_1").Detach();
-		auto psBlob = CompileShader(L"SamplePath.hlsl", nullptr, "PSMain", "ps_5_1").Detach();
-		outputMap[Shader::StaticMeshVS] = { vsBlob->GetBufferPointer(), vsBlob->GetBufferSize() };
-		outputMap[Shader::StaticMeshPS] = { psBlob->GetBufferPointer(), psBlob->GetBufferSize() };
+		outputMap[Shader::StaticMeshVS] = CompileShader(L"SamplePath.hlsl", nullptr, "VSMain", "vs_5_1");
+		outputMap[Shader::StaticMeshPS] = CompileShader(L"SamplePath.hlsl", nullptr, "PSMain", "ps_5_1");
 	};
 
 	using RootSignature = ComPtr<ID3D12RootSignature>;
-	auto buildPSODesc = [](GraphicsPSODescMap& outputMap, const RootSignature& rootSignature, const ShaderMap& shaderMap)
+	auto buildPSODesc = [](GraphicsPSODescMap& outputMap, RootSignature& rootSignature, ShaderMap& shaderMap, InputElementsMap& inputElementsMap)
 	{
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC staticMesh{};
 		staticMesh.NumRenderTargets = 1;
@@ -143,23 +152,24 @@ void DirectXToy::Startup()
 		staticMesh.SampleDesc.Quality = 0;
 		staticMesh.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 
-		staticMesh.VS = shaderMap.find(Shader::StaticMeshVS)->second;
-		staticMesh.PS = shaderMap.find(Shader::StaticMeshPS)->second;
+		staticMesh.VS = { shaderMap[Shader::StaticMeshVS]->GetBufferPointer(), shaderMap[Shader::StaticMeshVS]->GetBufferSize() };
+		staticMesh.PS = { shaderMap[Shader::StaticMeshPS]->GetBufferPointer(), shaderMap[Shader::StaticMeshPS]->GetBufferSize() };
+
+		staticMesh.InputLayout = { inputElementsMap[InputElement::StaticMesh].data(), 
+			static_cast<UINT>(inputElementsMap[InputElement::StaticMesh].size()) };
 
 		outputMap[PSO::StaticMesh] = staticMesh;
 	};
 
 	auto buildPSO = [](GraphicsPSOMap& outputMap, const GraphicsPSODescMap& psoDescMap, Device& device)
 	{
-		ID3D12PipelineState* pPipelineState{};
-		HRESULT hr = device->CreateGraphicsPipelineState(&psoDescMap.find(PSO::StaticMesh)->second, IID_PPV_ARGS(&pPipelineState));
+		HRESULT hr = device->CreateGraphicsPipelineState(&psoDescMap.find(PSO::StaticMesh)->second, IID_PPV_ARGS(&outputMap[PSO::StaticMesh]));
 		ASSERT_SUCCEEDED(hr);
-		outputMap[PSO::StaticMesh] = pPipelineState;
 	};
 
 	buildInputElements(inputElementsMap_);
 	buildShader(shaderMap_);
-	buildPSODesc(psoDescMap_, rootSignature1_, shaderMap_);
+	buildPSODesc(psoDescMap_, rootSignature1_, shaderMap_, inputElementsMap_);
 	buildPSO(psoMap_, psoDescMap_, device_);
 
 	//psoMap_[PSO::StaticMesh] = CD3DX12_PIPLINE_STATE_

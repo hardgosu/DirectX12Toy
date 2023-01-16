@@ -65,8 +65,11 @@ private:
 		StaticMeshPS,
 		SkinnedMeshVS,
 		SkinnedMeshPS,
+
+		TestVS,
+		TestPS,
 	};
-	using ShaderMap = std::map<Shader, D3D12_SHADER_BYTECODE>;
+	using ShaderMap = std::map<Shader, ComPtr<ID3DBlob>>;
 	ShaderMap shaderMap_;
 
 	enum class InputElement

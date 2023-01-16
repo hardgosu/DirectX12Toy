@@ -5,14 +5,15 @@
 
 // Put in space1, so the texture array does not overlap with these resources.  
 // The texture array will occupy registers t0, t1, ..., t6 in space0. 
-StructuredBuffer<MaterialData> gMaterials : register(t0);
-Texture2D gShadowMap : register(t1);
-Texture2D gDisplacementMap : register(t2);
-Texture2D gTextureMap[40] : register(t4);
-TextureCube gCubeMap : register(t3);
-StructuredBuffer<InstanceData> gInstanceData : register(t4);
+StructuredBuffer<MaterialData> gMaterials : register(t0, space1);
+StructuredBuffer<InstanceData> gInstanceData : register(t1, space1);
+Texture2D gShadowMap : register(t0);
+Texture2D gDisplacementMap : register(t1);
+TextureCube gCubeMap : register(t2);
+Texture2D gTextureMap[40] : register(t3);
 
-TextureCube gDynamicCubeMap : register(t44);
+
+//TextureCube gDynamicCubeMap : register(t44);
 
 SamplerState gsamPointWrap        : register(s0);
 SamplerState gsamPointClamp       : register(s1);
