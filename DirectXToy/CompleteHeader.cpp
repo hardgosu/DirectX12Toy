@@ -14,6 +14,7 @@ ComPtr<ID3DBlob> CompileShader(
 	HRESULT hr = S_OK;
 
 	ComPtr<ID3DBlob> byteCode = nullptr;
+	//TODO ÆÄÀÏ already exist... bytecode = .cso
 	ComPtr<ID3DBlob> errors;
 	hr = D3DCompileFromFile(filename.c_str(), defines, D3D_COMPILE_STANDARD_FILE_INCLUDE,
 		entrypoint.c_str(), target.c_str(), compileFlags, 0, &byteCode, &errors);

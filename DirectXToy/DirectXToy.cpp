@@ -115,46 +115,52 @@ void DirectXToy::Startup()
 			{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
 			{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
 			{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-		};
-
-		//TODO
-		std::vector<D3D12_INPUT_ELEMENT_DESC> staticMeshWorld
-		{
-			{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
 			{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-			{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-			//{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 1, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, 0 },
 		};
 	};
 
+	auto buildShader = [](ShaderMap& outputMap)
+	{
+		auto vsBlob = CompileShader(L"SamplePath.hlsl", nullptr, "VSMain", "vs_5_1").Detach();
+		auto psBlob = CompileShader(L"SamplePath.hlsl", nullptr, "PSMain", "ps_5_1").Detach();
+		outputMap[Shader::StaticMeshVS] = { vsBlob->GetBufferPointer(), vsBlob->GetBufferSize() };
+		outputMap[Shader::StaticMeshPS] = { psBlob->GetBufferPointer(), psBlob->GetBufferSize() };
+	};
+
 	using RootSignature = ComPtr<ID3D12RootSignature>;
-	auto buildPSODesc = [](GraphicsPSODescMap& outputMap, const RootSignature& rootSignature)
+	auto buildPSODesc = [](GraphicsPSODescMap& outputMap, const RootSignature& rootSignature, const ShaderMap& shaderMap)
 	{
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC staticMesh{};
 		staticMesh.NumRenderTargets = 1;
+		staticMesh.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
 		staticMesh.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 		staticMesh.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 		staticMesh.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
 		staticMesh.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
 		staticMesh.pRootSignature = rootSignature.Get();
-		std::string staticMeshVS =
-			"g\n"
-			"g\n";
-		//staticMesh.VS = D3D12_
-		//staticMesh.PS
-		CompileShader(L"Shader/shaders.hlsl", nullptr, "VSInstancing", "vs_5_1");
+		staticMesh.SampleMask = 0xFFFFFFFF;
+		staticMesh.SampleDesc.Count = 1;
+		staticMesh.SampleDesc.Quality = 0;
+		staticMesh.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 
+		staticMesh.VS = shaderMap.find(Shader::StaticMeshVS)->second;
+		staticMesh.PS = shaderMap.find(Shader::StaticMeshPS)->second;
+
+		outputMap[PSO::StaticMesh] = staticMesh;
 	};
 
-	auto buildPSO = [](GraphicsPSOMap& outputMap)
+	auto buildPSO = [](GraphicsPSOMap& outputMap, const GraphicsPSODescMap& psoDescMap, Device& device)
 	{
-		D3D12_GRAPHICS_PIPELINE_STATE_DESC staticMesh;
-
+		ID3D12PipelineState* pPipelineState{};
+		HRESULT hr = device->CreateGraphicsPipelineState(&psoDescMap.find(PSO::StaticMesh)->second, IID_PPV_ARGS(&pPipelineState));
+		ASSERT_SUCCEEDED(hr);
+		outputMap[PSO::StaticMesh] = pPipelineState;
 	};
 
 	buildInputElements(inputElementsMap_);
-	buildPSODesc(psoDescMap_, rootSignature1_);
-	buildPSO(psoMap_);
+	buildShader(shaderMap_);
+	buildPSODesc(psoDescMap_, rootSignature1_, shaderMap_);
+	buildPSO(psoMap_, psoDescMap_, device_);
 
 	//psoMap_[PSO::StaticMesh] = CD3DX12_PIPLINE_STATE_
 	//device_->CreateGraphicsPipelineState()

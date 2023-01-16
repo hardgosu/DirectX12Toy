@@ -3,20 +3,14 @@
 
 #include "Data.hlsl"
 
-// An array of textures, which is only supported in shader model 5.1+.  Unlike Texture2DArray, the textures
-// in this array can be different sizes and formats, making it more flexible than texture arrays.
-Texture2D gDiffuseMap[7] : register(t0);
-
 // Put in space1, so the texture array does not overlap with these resources.  
 // The texture array will occupy registers t0, t1, ..., t6 in space0. 
-StructuredBuffer<InstanceData> gInstanceData : register(t0, space1);
-StructuredBuffer<MaterialData> gMaterialData : register(t1, space1);
-
 StructuredBuffer<MaterialData> gMaterials : register(t0);
 Texture2D gShadowMap : register(t1);
 Texture2D gDisplacementMap : register(t2);
 Texture2D gTextureMap[40] : register(t4);
 TextureCube gCubeMap : register(t3);
+StructuredBuffer<InstanceData> gInstanceData : register(t4);
 
 TextureCube gDynamicCubeMap : register(t44);
 
@@ -31,9 +25,10 @@ SamplerComparisonState gsamShadow : register(s6);
 //카메라의 정보를 위한 상수 버퍼를 선언한다.
 cbuffer cbPass1 : register(b0)
 {
-	float4x4 gmtxView;
-	float4x4 gmtxProjection;
+	float4x4 gViewMatrix;
+	float4x4 gProjectionMatrix;
 	float4x4 gShadowMatrix;
+    float4x4 gTextureMatrix;
 	float3 gEyePosW;
 	float empty;
 	float gTotalTime;
@@ -45,8 +40,23 @@ cbuffer cbPass1 : register(b0)
 	float2 gInverseRenderTargetSize;
 };
 
+//인스턴스 데이터
+cbuffer cbObjectInfo : register(b1)
+{
+    float4x4 gWorldMatrix;
+	float4x4 gTextureTransform;
+	int4x4 gStartPolygonIndice[2];
+	int4x4 gEndPolygonIndice[2];
+	int gMaterialIndex;
+	float2 gDisplacementMapTexelSize;
+	float gGridSpatialStep;
+	int gTextureIndex;
+	int gIsHeightMapped;
+}
+
 // Constant data that varies per pass.
-cbuffer cbPass2 : register(b1)
+// 당장은 안씀
+cbuffer cbPass2 : register(b2)
 {
     float4x4 gView;
     float4x4 gInvView;
@@ -70,19 +80,6 @@ cbuffer cbPass2 : register(b1)
     // are spot lights for a maximum of MaxLights per object.
     Light gLights_2[MaxLights];
 };
-
-//인스턴스 데이터
-cbuffer cbObjectInfo : register(b2)
-{
-	float4x4 gTextureTransform;
-	int4x4 gStartPolygonIndice[2];
-	int4x4 gEndPolygonIndice[2];
-	int gMaterialIndex;
-	float2 gDisplacementMapTexelSize;
-	float gGridSpatialStep;
-	int gTextureIndex;
-	int gIsHeightMapped;
-}
 
 //그냥 파티클 전용 루트 시그니처 만드는게 나아
 cbuffer cbParticle : register(b3)
