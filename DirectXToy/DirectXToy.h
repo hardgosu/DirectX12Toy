@@ -16,7 +16,7 @@ public:
 	virtual void RenderScene(void) override;
 
 public:
-	std::array<const CD3DX12_STATIC_SAMPLER_DESC, 6> GetStaticSamplers() const;
+	std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> GetStaticSamplers() const;
 private:
 
 	//Camera m_Camera;
