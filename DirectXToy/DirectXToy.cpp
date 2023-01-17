@@ -95,21 +95,22 @@ void DirectXToy::Startup()
 	using RootParameter = CD3DX12_ROOT_PARAMETER; //signature 1.0
 	constexpr unsigned NumRootParameter = 10;
 	std::array<RootParameter, NumRootParameter> parameters;
-
+	//성능 팁 : 자주 쓰이는 순으로 파라미터 구성
 	parameters[0].InitAsConstantBufferView(0);
 	parameters[1].InitAsConstantBufferView(1);
 	parameters[2].InitAsConstantBufferView(2);
 	parameters[3].InitAsConstantBufferView(3);
 	parameters[4].InitAsShaderResourceView(0, 1);
 	parameters[5].InitAsShaderResourceView(1, 1);
-	parameters[6].InitAsShaderResourceView(0);
-	parameters[7].InitAsShaderResourceView(1);
-	CD3DX12_DESCRIPTOR_RANGE texTable1;
-	texTable1.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 2, 0);
-	CD3DX12_DESCRIPTOR_RANGE texTable2;
-	texTable2.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 40, 3, 0);
-	parameters[8].InitAsDescriptorTable(1, &texTable1);
-	parameters[9].InitAsDescriptorTable(1, &texTable2);
+
+	CD3DX12_DESCRIPTOR_RANGE texTable1(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0);
+	CD3DX12_DESCRIPTOR_RANGE texTable2(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1, 0);
+	CD3DX12_DESCRIPTOR_RANGE texTable3(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 2, 0);
+	CD3DX12_DESCRIPTOR_RANGE texTable4(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 40, 3, 0);
+	parameters[6].InitAsDescriptorTable(1, &texTable1, D3D12_SHADER_VISIBILITY_PIXEL);
+	parameters[7].InitAsDescriptorTable(1, &texTable2, D3D12_SHADER_VISIBILITY_PIXEL);
+	parameters[8].InitAsDescriptorTable(1, &texTable3, D3D12_SHADER_VISIBILITY_PIXEL);
+	parameters[9].InitAsDescriptorTable(1, &texTable4, D3D12_SHADER_VISIBILITY_PIXEL);
 
 	auto staticSamplers = GetStaticSamplers();
 
