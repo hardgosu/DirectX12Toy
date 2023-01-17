@@ -83,14 +83,20 @@ void DirectXToy::Startup()
 	heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE::D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
 	ASSERT_SUCCEEDED(device_->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&descriptorHeapDSV_)));
 	dsvHandleIncrementSize_ = device_->GetDescriptorHandleIncrementSize(heapDesc.Type);
+	descriptorHandleAccesors_.insert(std::make_pair(descriptorHeapDSV_.Get(), 
+		DescriptorHandleAccesor(descriptorHeapDSV_.Get(), dsvHandleIncrementSize_)));
 
 	heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE::D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
 	ASSERT_SUCCEEDED(device_->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&descriptorHeapRTV_)));
 	rtvHandleIncrementSize_ = device_->GetDescriptorHandleIncrementSize(heapDesc.Type);
+	descriptorHandleAccesors_.insert(std::make_pair(descriptorHeapRTV_.Get(),
+		DescriptorHandleAccesor(descriptorHeapRTV_.Get(), rtvHandleIncrementSize_)));
 
 	heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE::D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	ASSERT_SUCCEEDED(device_->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&descriptorHeapCBVSRVUAV_)));
 	cbvHandleIncrementSize_ = device_->GetDescriptorHandleIncrementSize(heapDesc.Type);
+	descriptorHandleAccesors_.insert(std::make_pair(descriptorHeapCBVSRVUAV_.Get(),
+		DescriptorHandleAccesor(descriptorHeapCBVSRVUAV_.Get(), cbvHandleIncrementSize_)));
 
 	using RootParameter = CD3DX12_ROOT_PARAMETER; //signature 1.0
 	constexpr unsigned NumRootParameter = 10;
@@ -173,7 +179,7 @@ void DirectXToy::Startup()
 	buildShader(shaderMap_);
 	buildPSODesc(psoDescMap_, rootSignature1_, shaderMap_, inputElementsMap_);
 	buildPSO(psoMap_, psoDescMap_, device_);
-
+	LoadTexture();
 	//psoMap_[PSO::StaticMesh] = CD3DX12_PIPLINE_STATE_
 	//device_->CreateGraphicsPipelineState()
 }
@@ -289,4 +295,60 @@ std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> DirectXToy::GetStaticSamplers()
 		anisotropicWrap, anisotropicClamp,
 		shadow
 	};
+}
+
+void DirectXToy::LoadTexture(/*...*/)
+{
+	std::vector<std::string> texNames =
+	{
+		"bricksDiffuseMap",
+		"bricksNormalMap",
+		"tileDiffuseMap",
+		"tileNormalMap",
+		"defaultDiffuseMap",
+		"defaultNormalMap",
+		"skyCubeMap"
+	};
+
+	std::vector<std::wstring> texFilenames =
+	{
+		L"Textures/bricks2.dds",
+		L"Textures/bricks2_nmap.dds",
+		L"Textures/tile.dds",
+		L"Textures/tile_nmap.dds",
+		L"Textures/white1x1.dds",
+		L"Textures/default_nmap.dds",
+		L"Textures/desertcube1024.dds"
+	};
+
+	ASSERT(texFilenames.size() == texNames.size());
+
+	for (int i = 0; i < (int)texNames.size(); ++i)
+	{
+		auto& texture = textures_[texNames[i]] = Texture();
+		texture.name_ = texNames[i];
+		texture.filePath_ = texFilenames[i];
+		ASSERT_SUCCEEDED(CreateDDSTextureFromFile12(device_.Get(),
+			commandList_.Get(), texture.filePath_.c_str(),
+			texture.resource_, texture.uploadHeap_));
+	}
+}
+
+void DirectXToy::LoadMesh(/*...*/)
+{
+
+}
+
+CD3DX12_CPU_DESCRIPTOR_HANDLE DirectXToy::DescriptorHandleAccesor::GetCPUHandle(int index) const
+{
+	auto srv = CD3DX12_CPU_DESCRIPTOR_HANDLE(source_->GetCPUDescriptorHandleForHeapStart());
+	srv.Offset(index, handleIncrementSize_);
+	return srv;
+}
+
+CD3DX12_GPU_DESCRIPTOR_HANDLE DirectXToy::DescriptorHandleAccesor::GetGPUHandle(int index) const
+{
+	auto srv = CD3DX12_GPU_DESCRIPTOR_HANDLE(source_->GetGPUDescriptorHandleForHeapStart());
+	srv.Offset(index, handleIncrementSize_);
+	return srv;
 }

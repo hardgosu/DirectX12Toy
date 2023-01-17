@@ -4,9 +4,7 @@
 class DirectXToy : public IGameApp
 {
 public:
-
 	DirectXToy(void) {}
-
 
 	virtual void Startup(void) override;
 	virtual void Cleanup(void) override;
@@ -35,6 +33,18 @@ private:
 	ComPtr<ID3D12Fence> fence_;
 	UINT64 fenceValue_{};
 	static constexpr UINT64 InitialFenceValue = 0;
+
+	struct DescriptorHandleAccesor
+	{
+		DescriptorHandleAccesor(ID3D12DescriptorHeap* descriptorHeap, UINT handleIncrementSize) : 
+			source_{ descriptorHeap }, handleIncrementSize_{ handleIncrementSize } {}
+		CD3DX12_GPU_DESCRIPTOR_HANDLE GetGPUHandle(int index) const;
+		CD3DX12_CPU_DESCRIPTOR_HANDLE GetCPUHandle(int index) const;
+
+		ID3D12DescriptorHeap* source_{ nullptr };
+		UINT handleIncrementSize_;
+	};
+	std::map<ID3D12DescriptorHeap*, DescriptorHandleAccesor> descriptorHandleAccesors_;
 
 	ComPtr<ID3D12DescriptorHeap> descriptorHeapRTV_;
 	UINT32 rtvHandleIncrementSize_{};
@@ -90,4 +100,19 @@ private:
 	//for FPS Counting
 	unsigned int frameCount_{};
 	float frameTimeCount_{};
+
+public:
+	void LoadTexture(/*...*/);
+	void LoadMesh(/*...*/);
+
+	struct Texture
+	{
+		std::string name_;
+		std::wstring filePath_;
+
+		ComPtr<ID3D12Resource> resource_;
+		ComPtr<ID3D12Resource> uploadHeap_;
+	};
+	std::map<std::string, Texture> textures_;
+
 };
