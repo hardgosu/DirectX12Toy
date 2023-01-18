@@ -120,22 +120,26 @@ public:
 		ID3D12GraphicsCommandList* cmdList,
 		const void* initData,
 		UINT64 byteSize,
-		ComPtr<ID3D12Resource>& uploadBuffer);
+		ComPtr<ID3D12Resource>& uploadBuffer,
+		bool flushCommandList = false); //TODO : if (flushCommandList)
 
 	struct VertexBuffer
 	{
 		ComPtr<ID3D12Resource> defaultVertexBuffer_; //gpu
 		ComPtr<ID3D12Resource> uploadVertexBuffer_; //gpu for upload
 		ComPtr<ID3DBlob*> rawVertexBuffer_;//cpu
-		
+		//TODO : View
+
 		ComPtr<ID3D12Resource> defaultIndexBuffer_; //gpu
 		ComPtr<ID3D12Resource> uploadIndexBuffer_; //gpu for upload
-		ComPtr<ID3DBlob*> rawVertexIndexBuffer_;//cpu
+		ComPtr<ID3DBlob*> rawIndexBuffer_;//cpu
+		//TODO : View
 
 		UINT vertexByteStride_{};
 		UINT vertexBufferByteSize_{};
 		DXGI_FORMAT indexFormat_{ DXGI_FORMAT_R16_UINT };
 		UINT indexBufferByteSize_{};
+
 	};
 	
 
