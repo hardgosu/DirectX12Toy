@@ -352,3 +352,52 @@ CD3DX12_GPU_DESCRIPTOR_HANDLE DirectXToy::DescriptorHandleAccesor::GetGPUHandle(
 	srv.Offset(index, handleIncrementSize_);
 	return srv;
 }
+
+static ComPtr<ID3D12Resource> CreateDefaultBuffer(
+	ID3D12Device* device,
+	ID3D12GraphicsCommandList* cmdList,
+	const void* initData,
+	UINT64 byteSize,
+	ComPtr<ID3D12Resource>& uploadBuffer)
+{
+	ComPtr<ID3D12Resource> defaultBuffer;
+
+	// 거의 바뀔일이 없는 데이터는 디폴트 힙에 만든다.
+	ASSERT_SUCCEEDED(device->CreateCommittedResource(
+		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+		D3D12_HEAP_FLAG_NONE,
+		&CD3DX12_RESOURCE_DESC::Buffer(byteSize),
+		D3D12_RESOURCE_STATE_COMMON,
+		nullptr,
+		IID_PPV_ARGS(defaultBuffer.GetAddressOf())));
+
+	// 하지만 처음 만들때는 업로드를 위해 업로드 힙이 필요한것이다.
+	ASSERT_SUCCEEDED(device->CreateCommittedResource(
+		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+		D3D12_HEAP_FLAG_NONE,
+		&CD3DX12_RESOURCE_DESC::Buffer(byteSize),
+		D3D12_RESOURCE_STATE_GENERIC_READ,
+		nullptr,
+		IID_PPV_ARGS(uploadBuffer.GetAddressOf())));
+
+
+	// 업로드 버퍼 리소스를 매핑해서 기록하거나 서브리소스 데이터를 서술해서 기록하는 방법
+	// 두가지가 있다. 그중 서브리소스를 활용하는 방법이다.
+	D3D12_SUBRESOURCE_DATA subResourceData = {};
+	subResourceData.pData = initData;
+	subResourceData.RowPitch = byteSize;
+	subResourceData.SlicePitch = subResourceData.RowPitch;
+	// 모든 리소스는 상태전이와 함께 복사든, 상태변경이든지 이루어져야 한다.
+	// 즉, 복사 가능 상태(복사 Destination)가 되어야 복사가 가능한것이다. 복사 이후 원래의 상태 혹은
+	// 아래와 같이 Read상태로 놓는다.
+	cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(defaultBuffer.Get(),
+		D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COPY_DEST));
+	UpdateSubresources<1>(cmdList, defaultBuffer.Get(), uploadBuffer.Get(), 0, 0, 1, &subResourceData);
+	cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(defaultBuffer.Get(),
+		D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ));
+
+	// 참고로 비동기임
+	// 이후의 코드에서 커맨드리스트를 Flush해야 한다.
+
+	return defaultBuffer;
+}

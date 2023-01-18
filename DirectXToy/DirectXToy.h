@@ -114,5 +114,57 @@ public:
 		ComPtr<ID3D12Resource> uploadHeap_;
 	};
 	std::map<std::string, Texture> textures_;
+public:
+	static ComPtr<ID3D12Resource> CreateDefaultBuffer(
+		ID3D12Device* device,
+		ID3D12GraphicsCommandList* cmdList,
+		const void* initData,
+		UINT64 byteSize,
+		ComPtr<ID3D12Resource>& uploadBuffer);
 
+	struct VertexBuffer
+	{
+		ComPtr<ID3D12Resource> defaultVertexBuffer_; //gpu
+		ComPtr<ID3D12Resource> uploadVertexBuffer_; //gpu for upload
+		ComPtr<ID3DBlob*> rawVertexBuffer_;//cpu
+		
+		ComPtr<ID3D12Resource> defaultIndexBuffer_; //gpu
+		ComPtr<ID3D12Resource> uploadIndexBuffer_; //gpu for upload
+		ComPtr<ID3DBlob*> rawVertexIndexBuffer_;//cpu
+
+		UINT vertexByteStride_{};
+		UINT vertexBufferByteSize_{};
+		DXGI_FORMAT indexFormat_{ DXGI_FORMAT_R16_UINT };
+		UINT indexBufferByteSize_{};
+	};
+	
+
+	//왠만하면 InputLayout과 호환되도록.
+	struct Vertex
+	{
+		Vertex() {}
+		Vertex(
+			const XMFLOAT3& p,
+			const XMFLOAT3& n,
+			const XMFLOAT3& t,
+			const XMFLOAT2& uv) :
+			Position(p),
+			Normal(n),
+			TangentU(t),
+			TexC(uv) {}
+		Vertex(
+			float px, float py, float pz,
+			float nx, float ny, float nz,
+			float tx, float ty, float tz,
+			float u, float v) :
+			Position(px, py, pz),
+			Normal(nx, ny, nz),
+			TangentU(tx, ty, tz),
+			TexC(u, v) {}
+
+		XMFLOAT3 Position;
+		XMFLOAT3 Normal;
+		XMFLOAT3 TangentU;
+		XMFLOAT2 TexC;
+	};
 };
