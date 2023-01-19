@@ -1,4 +1,5 @@
 #include "DirectXToy.h"
+#include "Dependent/GeometryGenerator.h"
 
 extern HWND g_hWnd;
 extern uint32_t g_DisplayWidth;
@@ -179,7 +180,8 @@ void DirectXToy::Startup()
 	buildShader(shaderMap_);
 	buildPSODesc(psoDescMap_, rootSignature1_, shaderMap_, inputElementsMap_);
 	buildPSO(psoMap_, psoDescMap_, device_);
-	LoadTexture();
+	LoadTexture(); //어차피 재사용 불가능하면 람다화
+	LoadMesh(); //어차피 재사용 불가능하면 람다화
 	//psoMap_[PSO::StaticMesh] = CD3DX12_PIPLINE_STATE_
 	//device_->CreateGraphicsPipelineState()
 }
@@ -336,7 +338,32 @@ void DirectXToy::LoadTexture(/*...*/)
 
 void DirectXToy::LoadMesh(/*...*/)
 {
+	GeometryGenerator generator;
+	auto meshData = generator.CreateGeosphere(10.0f, 16);
+	auto convertToMyBuffer = [this](const GeometryGenerator::MeshData& meshData, const std::string& name)
+	{
+		auto emplaced = meshDatas_.emplace(name);
+		ASSERT(emplaced.second);
+		auto& vertexBuffer = emplaced.first->second;
+		vertexBuffer.cpuVertexBuffer_.resize(meshData.Vertices.size());
+		vertexBuffer.cpuIndexBuffer_.resize(meshData.Indices32.size());
 
+		for (size_t i{}; i < meshData.Vertices.size(); ++i)
+		{
+			auto& vertex = vertexBuffer.cpuVertexBuffer_[i];
+			const auto& externVertex = meshData.Vertices[i];
+
+			vertex.position_ = externVertex.Position;
+			vertex.normal_ = externVertex.Normal;
+			vertex.tangentU_ = externVertex.TangentU;
+			vertex.texC_ = externVertex.TexC;
+		}
+		for (size_t i{}; i < meshData.Indices32.size(); ++i)
+		{
+			vertexBuffer.cpuIndexBuffer_[i] = meshData.Indices32[i];
+		}
+	};
+	convertToMyBuffer(meshData, "GeoSphere");
 }
 
 CD3DX12_CPU_DESCRIPTOR_HANDLE DirectXToy::DescriptorHandleAccesor::GetCPUHandle(int index) const

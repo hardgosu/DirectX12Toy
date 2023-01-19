@@ -123,26 +123,6 @@ public:
 		ComPtr<ID3D12Resource>& uploadBuffer,
 		bool flushCommandList = false); //TODO : if (flushCommandList)
 
-	struct VertexBuffer
-	{
-		ComPtr<ID3D12Resource> defaultVertexBuffer_; //gpu
-		ComPtr<ID3D12Resource> uploadVertexBuffer_; //gpu for upload
-		ComPtr<ID3DBlob*> rawVertexBuffer_;//cpu
-		//TODO : View
-
-		ComPtr<ID3D12Resource> defaultIndexBuffer_; //gpu
-		ComPtr<ID3D12Resource> uploadIndexBuffer_; //gpu for upload
-		ComPtr<ID3DBlob*> rawIndexBuffer_;//cpu
-		//TODO : View
-
-		UINT vertexByteStride_{};
-		UINT vertexBufferByteSize_{};
-		DXGI_FORMAT indexFormat_{ DXGI_FORMAT_R16_UINT };
-		UINT indexBufferByteSize_{};
-
-	};
-	
-
 	//왠만하면 InputLayout과 호환되도록.
 	struct Vertex
 	{
@@ -152,23 +132,60 @@ public:
 			const XMFLOAT3& n,
 			const XMFLOAT3& t,
 			const XMFLOAT2& uv) :
-			Position(p),
-			Normal(n),
-			TangentU(t),
-			TexC(uv) {}
+			position_(p),
+			normal_(n),
+			tangentU_(t),
+			texC_(uv) {}
 		Vertex(
 			float px, float py, float pz,
 			float nx, float ny, float nz,
 			float tx, float ty, float tz,
 			float u, float v) :
-			Position(px, py, pz),
-			Normal(nx, ny, nz),
-			TangentU(tx, ty, tz),
-			TexC(u, v) {}
+			position_(px, py, pz),
+			normal_(nx, ny, nz),
+			tangentU_(tx, ty, tz),
+			texC_(u, v) {}
 
-		XMFLOAT3 Position;
-		XMFLOAT3 Normal;
-		XMFLOAT3 TangentU;
-		XMFLOAT2 TexC;
+		XMFLOAT3 position_;
+		XMFLOAT3 normal_;
+		XMFLOAT3 tangentU_;
+		XMFLOAT2 texC_;
 	};
+
+	struct VertexBuffer
+	{
+		ComPtr<ID3D12Resource> defaultVertexBuffer_; //gpu
+		ComPtr<ID3D12Resource> uploadVertexBuffer_; //gpu for upload
+		std::vector<Vertex> cpuVertexBuffer_;
+		//TODO : View
+		D3D12_VERTEX_BUFFER_VIEW VertexBufferView() const
+		{
+			D3D12_VERTEX_BUFFER_VIEW vbv;
+			vbv.BufferLocation = defaultVertexBuffer_->GetGPUVirtualAddress();
+			vbv.StrideInBytes = vertexByteSize_;
+			vbv.SizeInBytes = vertexBufferByteSize_;
+
+			return vbv;
+		}
+
+		ComPtr<ID3D12Resource> defaultIndexBuffer_; //gpu
+		ComPtr<ID3D12Resource> uploadIndexBuffer_; //gpu for upload
+		std::vector<UINT16> cpuIndexBuffer_;
+		//TODO : View
+		D3D12_INDEX_BUFFER_VIEW IndexBufferView() const
+		{
+			D3D12_INDEX_BUFFER_VIEW ibv;
+			ibv.BufferLocation = defaultIndexBuffer_->GetGPUVirtualAddress();
+			ibv.Format = indexFormat_;
+			ibv.SizeInBytes = indexBufferByteSize_;
+
+			return ibv;
+		}
+
+		UINT vertexByteSize_{};
+		UINT vertexBufferByteSize_{};
+		DXGI_FORMAT indexFormat_{ DXGI_FORMAT_R16_UINT };
+		UINT indexBufferByteSize_{};
+	};
+	std::map<std::string, VertexBuffer> meshDatas_;
 };
