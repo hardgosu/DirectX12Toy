@@ -36,7 +36,7 @@ private:
 
 	struct DescriptorHandleAccesor
 	{
-		DescriptorHandleAccesor(ID3D12DescriptorHeap* descriptorHeap, UINT handleIncrementSize) : 
+		DescriptorHandleAccesor(ID3D12DescriptorHeap* descriptorHeap, UINT handleIncrementSize) :
 			source_{ descriptorHeap }, handleIncrementSize_{ handleIncrementSize } {}
 		CD3DX12_GPU_DESCRIPTOR_HANDLE GetGPUHandle(int index) const;
 		CD3DX12_CPU_DESCRIPTOR_HANDLE GetCPUHandle(int index) const;
@@ -152,7 +152,7 @@ public:
 		XMFLOAT2 texC_;
 	};
 	// skinnedVertex?
-	
+
 	//편의를 위해 VertexBuffer와 VertexBufferView가 1:1 관계라고 가정
 	//원래 1:다 관계
 	//모든 포맷의 정점데이터를 수용할수있다.
@@ -198,7 +198,9 @@ public:
 
 		void Confirm(ID3D12Device* pDevice, ID3D12GraphicsCommandList* pCommandList, bool clearData = false);
 	};
-
+	std::map<std::string, VertexBuffer> vertexBufferPool_; //1~2개정도만 만들면 충분..
+public:
+	void LoadRenderItem();
 	struct Mesh
 	{
 		struct VertexBufferView
@@ -237,10 +239,20 @@ public:
 			};
 			Desc desc_;
 
-			VertexBufferView(const Desc& desc) : desc_{ desc } 
+			VertexBufferView(const Desc& desc) : desc_{ desc }
 			{
 			};
 		};
 	};
-	std::map<std::string, VertexBuffer> vertexBufferPool_; //1~2개정도만 만들면 충분..
+
+	struct InstancingRenderItem
+	{
+		struct RenderItem
+		{
+			UINT instanceIndex_{};
+		};
+		ID3D12PipelineState* pso_{ nullptr };
+		UINT instanceCount_{ 16 };
+		std::optional<Mesh*> mesh_;
+	};
 };

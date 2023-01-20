@@ -182,8 +182,7 @@ void DirectXToy::Startup()
 	buildPSO(psoMap_, psoDescMap_, device_);
 	LoadTexture(); //어차피 재사용 불가능하면 람다화
 	LoadMesh(); //어차피 재사용 불가능하면 람다화
-	//psoMap_[PSO::StaticMesh] = CD3DX12_PIPLINE_STATE_
-	//device_->CreateGraphicsPipelineState()
+	LoadRenderItem(); //어차피 재사용 불가능하면 람다화
 }
 
 void DirectXToy::Cleanup()
@@ -227,6 +226,11 @@ void DirectXToy::RenderScene()
 bool DirectXToy::IsDone()
 {
 	return isDone_;
+}
+
+void DirectXToy::LoadRenderItem()
+{
+
 }
 
 std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> DirectXToy::GetStaticSamplers() const
@@ -309,7 +313,7 @@ void DirectXToy::LoadTexture(/*...*/)
 		"tileNormalMap",
 		"defaultDiffuseMap",
 		"defaultNormalMap",
-		"skyCubeMap"
+		"skyCubeMap",
 	};
 
 	std::vector<std::wstring> texFilenames =
@@ -320,7 +324,7 @@ void DirectXToy::LoadTexture(/*...*/)
 		L"Textures/tile_nmap.dds",
 		L"Textures/white1x1.dds",
 		L"Textures/default_nmap.dds",
-		L"Textures/desertcube1024.dds"
+		L"Textures/desertcube1024.dds",
 	};
 
 	ASSERT(texFilenames.size() == texNames.size());
@@ -338,8 +342,6 @@ void DirectXToy::LoadTexture(/*...*/)
 
 void DirectXToy::LoadMesh(/*...*/)
 {
-	GeometryGenerator generator;
-	auto meshData = generator.CreateGeosphere(10.0f, 16);
 	auto convertToMyBuffer = [this](const GeometryGenerator::MeshData& meshData, VertexBuffer& vertexBuffer)
 	{
 		std::vector<Vertex> vertexContainer;
@@ -366,11 +368,16 @@ void DirectXToy::LoadMesh(/*...*/)
 		vertexBuffer.AddToVB(vertexContainer.data(), sizeof(Vertex) * vertexContainer.size());
 		vertexBuffer.AddToIB(indexContainer.data(), sizeof(UINT16) * indexContainer.size());
 	};
+
 	auto& vertexBuffer = vertexBufferPool_["Main"];
 
+	GeometryGenerator generator;
+	auto meshData = generator.CreateGeosphere(10.0f, 16);
+	auto meshData2 = generator.CreateBox(10.0f, 10.0f, 10.0f, 16);
+
 	convertToMyBuffer(meshData, vertexBuffer);
-	convertToMyBuffer(meshData, vertexBuffer);
-	convertToMyBuffer(meshData, vertexBuffer);
+	convertToMyBuffer(meshData2, vertexBuffer);
+	convertToMyBuffer(meshData2, vertexBuffer);
 	convertToMyBuffer(meshData, vertexBuffer);
 
 
