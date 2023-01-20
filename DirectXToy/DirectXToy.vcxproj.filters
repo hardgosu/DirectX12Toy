@@ -21,27 +21,30 @@
     <ClCompile Include="CompleteHeader.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="DDSTextureLoader.cpp">
+    <ClCompile Include="Dependent\DDSTextureLoader.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
     <ClCompile Include="Main.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
+    <ClCompile Include="Dependent\GeometryGenerator.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="IGameApp.h">
+    <ClInclude Include="Dependent\IGameApp.h">
       <Filter>소스 파일</Filter>
     </ClInclude>
     <ClInclude Include="CompleteHeader.h">
       <Filter>소스 파일</Filter>
     </ClInclude>
-    <ClInclude Include="d3dx12.h">
+    <ClInclude Include="Dependent\d3dx12.h">
       <Filter>소스 파일</Filter>
     </ClInclude>
-    <ClInclude Include="DDSTextureLoader.h">
+    <ClInclude Include="Dependent\DDSTextureLoader.h">
       <Filter>소스 파일</Filter>
     </ClInclude>
-    <ClInclude Include="MathHelper.h">
+    <ClInclude Include="Dependent\MathHelper.h">
       <Filter>소스 파일</Filter>
     </ClInclude>
     <ClInclude Include="DirectXToy.h">
@@ -49,6 +52,9 @@
     </ClInclude>
     <ClInclude Include="Utility.h">
       <Filter>소스 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="Dependent\GeometryGenerator.h">
+      <Filter>헤더 파일</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
