@@ -151,41 +151,96 @@ public:
 		XMFLOAT3 tangentU_;
 		XMFLOAT2 texC_;
 	};
-
+	// skinnedVertex?
+	
+	//편의를 위해 VertexBuffer와 VertexBufferView가 1:1 관계라고 가정
+	//원래 1:다 관계
+	//모든 포맷의 정점데이터를 수용할수있다.
 	struct VertexBuffer
 	{
+		using Byte = UINT8;
+		//64는 임의의 정점 크기
+		static constexpr unsigned ReservedVBSize = 64 * 1024 * 1024;
+		static constexpr unsigned ReservedIBSIze = sizeof(UINT16) * 1024 * 1024;
+
 		ComPtr<ID3D12Resource> defaultVertexBuffer_; //gpu
 		ComPtr<ID3D12Resource> uploadVertexBuffer_; //gpu for upload
-		std::vector<Vertex> cpuVertexBuffer_;
-		//TODO : View
-		D3D12_VERTEX_BUFFER_VIEW VertexBufferView() const
-		{
-			D3D12_VERTEX_BUFFER_VIEW vbv;
-			vbv.BufferLocation = defaultVertexBuffer_->GetGPUVirtualAddress();
-			vbv.StrideInBytes = vertexByteSize_;
-			vbv.SizeInBytes = vertexBufferByteSize_;
-
-			return vbv;
-		}
+		std::unique_ptr<Byte[]> cpuVertexBuffer_{ nullptr };
+		size_t vbSize_{};
 
 		ComPtr<ID3D12Resource> defaultIndexBuffer_; //gpu
 		ComPtr<ID3D12Resource> uploadIndexBuffer_; //gpu for upload
-		std::vector<UINT16> cpuIndexBuffer_;
-		//TODO : View
-		D3D12_INDEX_BUFFER_VIEW IndexBufferView() const
-		{
-			D3D12_INDEX_BUFFER_VIEW ibv;
-			ibv.BufferLocation = defaultIndexBuffer_->GetGPUVirtualAddress();
-			ibv.Format = indexFormat_;
-			ibv.SizeInBytes = indexBufferByteSize_;
+		std::unique_ptr<Byte[]> cpuIndexBuffer_{ nullptr };
+		size_t ibSize_{};
 
-			return ibv;
+
+		VertexBuffer()
+		{
+			cpuVertexBuffer_ = std::make_unique<Byte[]>(ReservedVBSize);
+			cpuIndexBuffer_ = std::make_unique<Byte[]>(ReservedIBSIze);
 		}
 
-		UINT vertexByteSize_{};
-		UINT vertexBufferByteSize_{};
-		DXGI_FORMAT indexFormat_{ DXGI_FORMAT_R16_UINT };
-		UINT indexBufferByteSize_{};
+		void AddToVB(const void* pData, size_t byteSize)
+		{
+			ASSERT(ReservedVBSize >= byteSize + vbSize_);
+
+			std::memcpy(cpuVertexBuffer_.get() + vbSize_, pData, byteSize);
+			vbSize_ += byteSize;
+		}
+
+		void AddToIB(const void* pData, size_t byteSize)
+		{
+			ASSERT(ReservedIBSIze >= byteSize + ibSize_);
+
+			std::memcpy(cpuVertexBuffer_.get() + ibSize_, pData, byteSize);
+			ibSize_ += byteSize;
+		}
+
+		void Confirm(ID3D12Device* pDevice, ID3D12GraphicsCommandList* pCommandList, bool clearData = false);
 	};
-	std::map<std::string, VertexBuffer> meshDatas_;
+
+	struct Mesh
+	{
+		struct VertexBufferView
+		{
+			//TODO : View
+			D3D12_VERTEX_BUFFER_VIEW GetVertexBufferView() const
+			{
+				D3D12_VERTEX_BUFFER_VIEW vbv;
+				vbv.BufferLocation = desc_.sourceBuffer_->defaultVertexBuffer_->GetGPUVirtualAddress();
+				vbv.StrideInBytes = desc_.vertexByteSize_;
+				vbv.SizeInBytes = desc_.vertexBufferByteSize_;
+
+				return vbv;
+			}
+
+			//TODO : View
+			D3D12_INDEX_BUFFER_VIEW GetIndexBufferView() const
+			{
+				D3D12_INDEX_BUFFER_VIEW ibv;
+				ibv.BufferLocation = desc_.sourceBuffer_->defaultIndexBuffer_->GetGPUVirtualAddress();
+				ibv.Format = desc_.indexFormat_;
+				ibv.SizeInBytes = desc_.indexBufferByteSize_;
+
+				return ibv;
+			}
+
+			struct Desc
+			{
+				//My View
+				UINT vertexByteSize_{};
+				UINT vertexBufferByteSize_{};
+				DXGI_FORMAT indexFormat_{ DXGI_FORMAT_R16_UINT };
+				UINT indexBufferByteSize_{};
+
+				VertexBuffer* sourceBuffer_{ nullptr };
+			};
+			Desc desc_;
+
+			VertexBufferView(const Desc& desc) : desc_{ desc } 
+			{
+			};
+		};
+	};
+	std::map<std::string, VertexBuffer> vertexBufferPool_; //1~2개정도만 만들면 충분..
 };

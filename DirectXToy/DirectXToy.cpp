@@ -340,17 +340,17 @@ void DirectXToy::LoadMesh(/*...*/)
 {
 	GeometryGenerator generator;
 	auto meshData = generator.CreateGeosphere(10.0f, 16);
-	auto convertToMyBuffer = [this](const GeometryGenerator::MeshData& meshData, const std::string& name)
+	auto convertToMyBuffer = [this](const GeometryGenerator::MeshData& meshData, VertexBuffer& vertexBuffer)
 	{
-		auto emplaced = meshDatas_.emplace(name);
-		ASSERT(emplaced.second);
-		auto& vertexBuffer = emplaced.first->second;
-		vertexBuffer.cpuVertexBuffer_.resize(meshData.Vertices.size());
-		vertexBuffer.cpuIndexBuffer_.resize(meshData.Indices32.size());
+		std::vector<Vertex> vertexContainer;
+		std::vector<UINT16> indexContainer;
+
+		vertexContainer.resize(meshData.Vertices.size());
+		indexContainer.resize(meshData.Indices32.size());
 
 		for (size_t i{}; i < meshData.Vertices.size(); ++i)
 		{
-			auto& vertex = vertexBuffer.cpuVertexBuffer_[i];
+			auto& vertex = vertexContainer[i];
 			const auto& externVertex = meshData.Vertices[i];
 
 			vertex.position_ = externVertex.Position;
@@ -360,10 +360,32 @@ void DirectXToy::LoadMesh(/*...*/)
 		}
 		for (size_t i{}; i < meshData.Indices32.size(); ++i)
 		{
-			vertexBuffer.cpuIndexBuffer_[i] = meshData.Indices32[i];
+			indexContainer[i] = static_cast<UINT16>(meshData.Indices32[i]);
 		}
+
+		vertexBuffer.AddToVB(vertexContainer.data(), sizeof(Vertex) * vertexContainer.size());
+		vertexBuffer.AddToIB(indexContainer.data(), sizeof(UINT16) * indexContainer.size());
 	};
-	convertToMyBuffer(meshData, "GeoSphere");
+	auto& vertexBuffer = vertexBufferPool_["Main"];
+
+	convertToMyBuffer(meshData, vertexBuffer);
+	convertToMyBuffer(meshData, vertexBuffer);
+	convertToMyBuffer(meshData, vertexBuffer);
+	convertToMyBuffer(meshData, vertexBuffer);
+
+
+	vertexBuffer.Confirm(device_.Get(), commandList_.Get());
+}
+
+void DirectXToy::VertexBuffer::Confirm(ID3D12Device* pDevice, ID3D12GraphicsCommandList* pCommandList, bool clearData /*false*/)
+{
+	defaultVertexBuffer_ = CreateDefaultBuffer(pDevice, pCommandList, cpuVertexBuffer_.get(), vbSize_, uploadVertexBuffer_, clearData);
+	ASSERT(defaultVertexBuffer_ != nullptr);
+
+	defaultIndexBuffer_ = CreateDefaultBuffer(pDevice, pCommandList, cpuIndexBuffer_.get(), ibSize_, uploadIndexBuffer_, clearData);
+	ASSERT(defaultIndexBuffer_ != nullptr);
+
+
 }
 
 CD3DX12_CPU_DESCRIPTOR_HANDLE DirectXToy::DescriptorHandleAccesor::GetCPUHandle(int index) const
@@ -380,7 +402,7 @@ CD3DX12_GPU_DESCRIPTOR_HANDLE DirectXToy::DescriptorHandleAccesor::GetGPUHandle(
 	return srv;
 }
 
-static ComPtr<ID3D12Resource> CreateDefaultBuffer(
+ComPtr<ID3D12Resource> DirectXToy::CreateDefaultBuffer(
 	ID3D12Device* device,
 	ID3D12GraphicsCommandList* cmdList,
 	const void* initData,
