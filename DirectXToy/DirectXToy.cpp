@@ -231,6 +231,7 @@ bool DirectXToy::IsDone()
 void DirectXToy::LoadRenderItem()
 {
 
+
 }
 
 std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> DirectXToy::GetStaticSamplers() const
@@ -369,19 +370,61 @@ void DirectXToy::LoadMesh(/*...*/)
 		vertexBuffer.AddToIB(indexContainer.data(), sizeof(UINT16) * indexContainer.size());
 	};
 
-	auto& vertexBuffer = vertexBufferPool_["Main"];
+	auto& vertexBuffer1 = vertexBufferPool_["Main"];
 
 	GeometryGenerator generator;
 	auto meshData = generator.CreateGeosphere(10.0f, 16);
 	auto meshData2 = generator.CreateBox(10.0f, 10.0f, 10.0f, 16);
 
-	convertToMyBuffer(meshData, vertexBuffer);
-	convertToMyBuffer(meshData2, vertexBuffer);
-	convertToMyBuffer(meshData2, vertexBuffer);
-	convertToMyBuffer(meshData, vertexBuffer);
+	struct MeshData
+	{
+		std::string name_;
+		const GeometryGenerator::MeshData* pData_;
+	};
+	using MeshDataList = std::map<std::string, const GeometryGenerator::MeshData*>;
+	MeshDataList meshDataList
+	{
+		{"GeoSphere1", &meshData },
+		{"Box1", &meshData2 },
+		{"Box2", &meshData2 },
+		{"GeoSphere2", &meshData },
+	};
 
+	for (const auto& [_, pMeshData] : meshDataList)
+	{
+		convertToMyBuffer(*pMeshData, vertexBuffer1);
+	}
 
-	vertexBuffer.Confirm(device_.Get(), commandList_.Get());
+	vertexBuffer1.Confirm(device_.Get(), commandList_.Get());
+
+	auto buildMesh = [](MeshMap& output, 
+		const MeshDataList& meshDatas,
+		const VertexBuffer& sourceBuffer)
+	{
+		int startIndexLocationCounter{};
+		int startVertexLocationCounter{};
+
+		int i{};
+		for (const auto& [name, pMeshData] : meshDatas)
+		{
+			const auto& meshData = *pMeshData;
+			Mesh::Desc desc;
+			desc.indexCount_ = meshData.Indices32.size();
+			desc.indexBufferByteSize_ = sizeof(UINT16) * desc.indexCount_;
+			desc.vertexByteSize_ = sizeof(Vertex);
+			desc.vertexBufferByteSize_ = meshData.Vertices.size() * desc.vertexByteSize_;
+			desc.startIndexLocation_ = startIndexLocationCounter;
+			desc.baseVertexLocation_ = startVertexLocationCounter;
+			desc.sourceBuffer_ = const_cast<VertexBuffer*>(&sourceBuffer);
+
+			startVertexLocationCounter += meshData.Vertices.size();
+			startIndexLocationCounter += meshData.Indices32.size();
+
+			output[name] = desc;
+			++i;
+		}
+	};
+	buildMesh(meshMap_, meshDataList, vertexBuffer1);
 }
 
 void DirectXToy::VertexBuffer::Confirm(ID3D12Device* pDevice, ID3D12GraphicsCommandList* pCommandList, bool clearData /*false*/)

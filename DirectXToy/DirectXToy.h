@@ -203,47 +203,49 @@ public:
 	void LoadRenderItem();
 	struct Mesh
 	{
-		struct VertexBufferView
+		D3D12_VERTEX_BUFFER_VIEW GetVertexBufferView() const
 		{
-			//TODO : View
-			D3D12_VERTEX_BUFFER_VIEW GetVertexBufferView() const
-			{
-				D3D12_VERTEX_BUFFER_VIEW vbv;
-				vbv.BufferLocation = desc_.sourceBuffer_->defaultVertexBuffer_->GetGPUVirtualAddress();
-				vbv.StrideInBytes = desc_.vertexByteSize_;
-				vbv.SizeInBytes = desc_.vertexBufferByteSize_;
+			D3D12_VERTEX_BUFFER_VIEW vbv;
+			vbv.BufferLocation = desc_.sourceBuffer_->defaultVertexBuffer_->GetGPUVirtualAddress();
+			vbv.StrideInBytes = desc_.vertexByteSize_;
+			vbv.SizeInBytes = desc_.vertexBufferByteSize_;
 
-				return vbv;
-			}
+			return vbv;
+		}
 
-			//TODO : View
-			D3D12_INDEX_BUFFER_VIEW GetIndexBufferView() const
-			{
-				D3D12_INDEX_BUFFER_VIEW ibv;
-				ibv.BufferLocation = desc_.sourceBuffer_->defaultIndexBuffer_->GetGPUVirtualAddress();
-				ibv.Format = desc_.indexFormat_;
-				ibv.SizeInBytes = desc_.indexBufferByteSize_;
+		D3D12_INDEX_BUFFER_VIEW GetIndexBufferView() const
+		{
+			D3D12_INDEX_BUFFER_VIEW ibv;
+			ibv.BufferLocation = desc_.sourceBuffer_->defaultIndexBuffer_->GetGPUVirtualAddress();
+			ibv.Format = desc_.indexFormat_;
+			ibv.SizeInBytes = desc_.indexBufferByteSize_;
 
-				return ibv;
-			}
+			return ibv;
+		}
 
-			struct Desc
-			{
-				//My View
-				UINT vertexByteSize_{};
-				UINT vertexBufferByteSize_{};
-				DXGI_FORMAT indexFormat_{ DXGI_FORMAT_R16_UINT };
-				UINT indexBufferByteSize_{};
+		struct Desc
+		{
+			//My View
+			UINT vertexByteSize_{};
+			UINT vertexBufferByteSize_{};
+			DXGI_FORMAT indexFormat_{ DXGI_FORMAT_R16_UINT };
+			UINT indexBufferByteSize_{};
 
-				VertexBuffer* sourceBuffer_{ nullptr };
-			};
-			Desc desc_;
+			UINT indexCount_{};
+			UINT startIndexLocation_{};
+			INT baseVertexLocation_{};
 
-			VertexBufferView(const Desc& desc) : desc_{ desc }
-			{
-			};
+			VertexBuffer* sourceBuffer_{ nullptr };
+		};
+		Desc desc_;
+
+		Mesh() {};
+		Mesh(const Desc& desc) : desc_{ desc }
+		{
 		};
 	};
+	using MeshMap = std::map<std::string, Mesh>;
+	MeshMap meshMap_;
 
 	struct InstancingRenderItem
 	{
