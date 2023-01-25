@@ -24,7 +24,7 @@ SamplerState gsamAnisotropicClamp : register(s5);
 SamplerComparisonState gsamShadow : register(s6);
 
 //카메라의 정보를 위한 상수 버퍼를 선언한다.
-cbuffer cbPass1 : register(b0)
+cbuffer ConstantBuffer1 : register(b0)
 {
 	float4x4 gViewMatrix;
 	float4x4 gProjectionMatrix;
@@ -41,18 +41,19 @@ cbuffer cbPass1 : register(b0)
 	float2 gInverseRenderTargetSize;
 };
 
+/*
 //인스턴스 데이터
 cbuffer cbObjectInfo : register(b1)
 {
     float4x4 gWorldMatrix;
 	float4x4 gTextureTransform;
-	int4x4 gStartPolygonIndice[2];
-	int4x4 gEndPolygonIndice[2];
 	int gMaterialIndex;
-	float2 gDisplacementMapTexelSize;
-	float gGridSpatialStep;
 	int gTextureIndex;
-	int gIsHeightMapped;
+}
+*/
+
+cbuffer cbObjectInfo : register(b1)
+{
 }
 
 // Constant data that varies per pass.

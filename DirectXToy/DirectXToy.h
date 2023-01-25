@@ -247,14 +247,77 @@ public:
 	using MeshMap = std::map<std::string, Mesh>;
 	MeshMap meshMap_;
 
+public:
+	struct Material
+	{
+		XMFLOAT4 diffuseAlbedo_{ 1.0f, 1.0f, 1.0f, 1.0f };
+		XMFLOAT3 fresnelR0_{ 0.01f, 0.01f, 0.01f };
+		float roughness_{ 0.5f };
+		XMFLOAT4X4 materialTransform_ = MathHelper::Identity4x4();
+		UINT normalMapIndex_{};
+		UINT diffuseMapIndex_{};
+		UINT specularMapIndex_{};
+		UINT roughnesMapIndex_{};
+	};
+
+	struct InstanceData
+	{
+		XMFLOAT4X4 worldMatrix_ = MathHelper::Identity4x4();
+		XMFLOAT4X4 texTransform_ = MathHelper::Identity4x4();
+		UINT materialIndex_{};
+		UINT textureIndex_{};
+		UINT pad_;
+		UINT pad2_;
+	};
+
+	struct Light
+	{
+		XMFLOAT3 strength_{ 0.5f, 0.5f, 0.5f };
+		float falloffStart_{ 1.0f };					// point/spot light only
+		XMFLOAT3 direction_{ 0.0f, -1.0f, 0.0f };		// directional/spot light only
+		float falloffEnd_{ 10.0f };						// point/spot light only
+		XMFLOAT3 position_{ 0.0f, 0.0f, 0.0f };			// point/spot light only
+		float spotPower_{ 64.0f };						// spot light only
+	};
+
+	static constexpr unsigned MaxLights = 16;
+
+	struct ConstantBuffer1
+	{
+		XMFLOAT4X4 viewMatrix_;
+		XMFLOAT4X4 projectionMatrix_;
+		XMFLOAT4X4 shadowMatrix_;
+		XMFLOAT4X4 textureMatrix_;
+		XMFLOAT3 eyePosW_{ 0.0f, 0.0f, 0.0f };
+		float pad_;
+		float totalTime_;
+		float deltaTime_;
+		XMFLOAT2 pad2_;
+		Light lights_[MaxLights];
+		XMFLOAT4 ambientLight_{ 0.0f, 0.0f, 0.0f, 1.0f };
+		XMFLOAT2 renderTargetSize_{ 0.0f, 0.0f };
+		XMFLOAT2 inverseRenderTargetSize_{ 0.0f, 0.0f };
+	};
+
+	struct PassData //FR
+	{
+		std::unique_ptr<UploadBuffer<Material>> materialBuffer_;
+		std::unique_ptr<UploadBuffer<InstanceData>> instanceBuffer_;
+		std::unique_ptr<UploadBuffer<ConstantBuffer1>> instanceBuffer_;
+		UINT64 fence_{};
+	};
+	PassData passData_;
+
 	struct InstancingRenderItem
 	{
 		struct RenderItem
 		{
-			UINT instanceIndex_{};
+			std::optional<UINT> instanceIndex_{};
 		};
 		ID3D12PipelineState* pso_{ nullptr };
-		UINT instanceCount_{ 16 };
+		UINT instanceCount_{ 1 };
 		std::optional<Mesh*> mesh_;
+		std::vector<InstanceData> cpuInstanceBuffer_;
 	};
+
 };

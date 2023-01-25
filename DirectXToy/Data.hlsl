@@ -22,11 +22,12 @@ struct InstanceData
 	float4x4 World;
 	float4x4 TexTransform;
 	uint     MaterialIndex;
-	uint     InstPad0;
+	uint     gTextureIndex;
 	uint     InstPad1;
 	uint     InstPad2;
 };
 
+/*
 struct MaterialData
 {
 	float4   DiffuseAlbedo;
@@ -38,9 +39,10 @@ struct MaterialData
 	uint     MatPad1;
 	uint     MatPad2;
 };
+*/
 
 //CPU에서 정의한 구조에 대응하는 캡슐
-struct MaterialData2
+struct MaterialData
 {
 	float4 DiffuseAlbedo;
 	float3 FresnelR0;
