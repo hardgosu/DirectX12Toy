@@ -1,5 +1,5 @@
 #include "DirectXToy.h"
-#include "Dependent/GeometryGenerator.h"
+#include "Independent/GeometryGenerator.h"
 
 extern HWND g_hWnd;
 extern uint32_t g_DisplayWidth;
@@ -230,8 +230,51 @@ bool DirectXToy::IsDone()
 
 void DirectXToy::LoadRenderItem()
 {
+	constexpr int NumRenderItems = 4;
+	constexpr int InstanceBufferSize = 30;
+
+	auto buildRenderItem = [this]()
+	{
+		renderItems_.reserve(NumRenderItems);
+
+		InstancingRenderItem::Desc desc;
+		desc.pso_ = psoMap_[PSO::StaticMesh].Get();
+		desc.instanceBufferCount_ = InstanceBufferSize;
+
+		desc.mesh_ = &meshMap_["GeoSphere1"];
+		renderItems_.push_back(desc);
+		desc.mesh_ = &meshMap_["GeoSphere2"];
+		renderItems_.push_back(desc);
+		desc.mesh_ = &meshMap_["Box1"];
+		renderItems_.push_back(desc);
+		desc.mesh_ = &meshMap_["Box2"];
+		renderItems_.push_back(desc);
+	};
+	buildRenderItem();
+
+	auto buildMaterial = [this]()
+	{
+		//아직 별 의미없음.
+		materialMapCPU_[MaterialKind::Standard].diffuseAlbedo_ = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+		materialMapCPU_[MaterialKind::Standard].fresnelR0_ = XMFLOAT3(0.02f, 0.02f, 0.02f);
+		materialMapCPU_[MaterialKind::Standard].roughness_ = 0.3f;
+		materialMapCPU_[MaterialKind::Standard].diffuseMapIndex_ = 0;
 
 
+		materialMapCPU_[MaterialKind::Glossy].diffuseAlbedo_ = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+		materialMapCPU_[MaterialKind::Glossy].fresnelR0_ = XMFLOAT3(0.05f, 0.05f, 0.05f);
+		materialMapCPU_[MaterialKind::Glossy].roughness_ = 0.3f;
+		materialMapCPU_[MaterialKind::Glossy].diffuseMapIndex_ = 1;
+	};
+	buildMaterial();
+
+	auto buildPassData = [this]()
+	{
+		passData_.instanceBuffer_ = std::make_unique<UploadBuffer<InstanceData>>(device_.Get(), InstanceBufferSize * NumRenderItems, false);
+		passData_.materialBuffer_ = std::make_unique<UploadBuffer<Material>>(device_.Get(), materialMapCPU_.size(), false);
+		passData_.constantBuffer_ = std::make_unique<UploadBuffer<ConstantBuffer1>>(device_.Get(), 1, true);
+	};
+	buildPassData();
 }
 
 std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> DirectXToy::GetStaticSamplers() const
@@ -501,4 +544,88 @@ ComPtr<ID3D12Resource> DirectXToy::CreateDefaultBuffer(
 	// 이후의 코드에서 커맨드리스트를 Flush해야 한다.
 
 	return defaultBuffer;
+}
+
+void DirectXToy::Camera::Rotate(Axis axis, float angle)
+{
+	XMMATRIX rotationMatrix;
+	switch (axis)
+	{
+		case Axis::X:
+		{
+			rotationMatrix = XMMatrixRotationX(angle);
+		}
+		break;
+		case Axis::Y:
+		{
+			rotationMatrix = XMMatrixRotationY(angle);
+		}
+		break;
+		case Axis::Z:
+		{
+			rotationMatrix = XMMatrixRotationZ(angle);
+		}
+		break;
+	}
+	XMStoreFloat3(&right_, XMVector3TransformNormal(XMLoadFloat3(&right_), rotationMatrix));
+	XMStoreFloat3(&up_, XMVector3TransformNormal(XMLoadFloat3(&up_), rotationMatrix));
+	XMStoreFloat3(&look_, XMVector3TransformNormal(XMLoadFloat3(&look_), rotationMatrix));
+	viewDirty_ = true;
+}
+
+void DirectXToy::Camera::SetPosition(const XMFLOAT3& position)
+{
+	position_ = position;
+	viewDirty_ = true;
+}
+
+const XMFLOAT4X4& DirectXToy::Camera::GetProjMatrix()
+{
+	if (!projDirty_)
+	{
+		return proj_;
+	}
+
+	XMStoreFloat4x4(&proj_, XMMatrixPerspectiveFovLH(fovY_, aspect_, nearZ_, farZ_));
+	projDirty_ = false;
+	return proj_;
+}
+
+const XMFLOAT4X4& DirectXToy::Camera::GetViewMatrix()
+{
+	if (!viewDirty_)
+	{
+		return view_;
+	}
+
+	auto look = XMVector3Normalize(XMLoadFloat3(&look_));
+	auto up = XMVector3Normalize(XMVector3Cross(look, XMLoadFloat3(&right_)));
+	auto right = XMVector3Normalize(XMVector3Cross(up, look));
+
+	XMStoreFloat3(&look_, look);
+	XMStoreFloat3(&up_, up);
+	XMStoreFloat3(&right_, right);
+
+	float x = -XMVectorGetX(XMVector3Dot(XMLoadFloat3(&position_), right));
+	float y = -XMVectorGetX(XMVector3Dot(XMLoadFloat3(&position_), up));
+	float z = -XMVectorGetX(XMVector3Dot(XMLoadFloat3(&position_), look));
+
+	view_ = XMFLOAT4X4
+	{
+		right_.x, up_.x, look_.x, 0,
+		right_.y, up_.y, look_.y, 0,
+		right_.z, up_.z, look_.z, 0,
+		x, y, z, 1.0f,
+	};
+	viewDirty_ = false;
+}
+
+void DirectXToy::Camera::SetProjMatrix(float fovY/* PI * 0.25 */, float aspect/* 1.0f */, float nearZ/* 1.0f */, float farZ/* 1000.0f */)
+{
+	fovY_ = fovY;
+	aspect_ = aspect;
+	nearZ_ = nearZ;
+	farZ_ = farZ;
+
+	projDirty_ = true;
 }

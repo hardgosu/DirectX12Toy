@@ -259,15 +259,23 @@ public:
 		UINT specularMapIndex_{};
 		UINT roughnesMapIndex_{};
 	};
+	enum MaterialKind
+	{
+		Standard,
+		Glossy,
+		Metalic,
+	};
+	using MaterialMap = std::map<MaterialKind, Material>;
+	MaterialMap materialMapCPU_;
 
 	struct InstanceData
 	{
 		XMFLOAT4X4 worldMatrix_ = MathHelper::Identity4x4();
 		XMFLOAT4X4 texTransform_ = MathHelper::Identity4x4();
 		UINT materialIndex_{};
-		UINT textureIndex_{};
-		UINT pad_;
-		UINT pad2_;
+		UINT pad_{};
+		UINT pad2_{};
+		UINT pad3_{};
 	};
 
 	struct Light
@@ -299,25 +307,68 @@ public:
 		XMFLOAT2 inverseRenderTargetSize_{ 0.0f, 0.0f };
 	};
 
+	struct InstancingRenderItem
+	{
+		struct Desc
+		{
+			ID3D12PipelineState* pso_{ nullptr };
+			Mesh* mesh_{ nullptr };
+			UINT instanceBufferCount_{};
+		};
+		Desc desc_;
+		std::vector<InstanceData> cpuInstanceBuffer_; //before to Set, write to GPU Mapped Data(UploadBufer)
+		UINT visibleItemCount_{};
+
+		InstancingRenderItem(const Desc& desc) : desc_{ desc }
+		{
+			ASSERT(desc_.pso_ != nullptr);
+			ASSERT(desc_.mesh_ != nullptr);
+			ASSERT(instanceBufferCount_ >= 0);
+			cpuInstanceBuffer_.resize(instanceBufferCount_);
+		}
+	};
+	std::vector<InstancingRenderItem> renderItems_;
+
 	struct PassData //FR
 	{
 		std::unique_ptr<UploadBuffer<Material>> materialBuffer_;
 		std::unique_ptr<UploadBuffer<InstanceData>> instanceBuffer_;
-		std::unique_ptr<UploadBuffer<ConstantBuffer1>> instanceBuffer_;
+		std::unique_ptr<UploadBuffer<ConstantBuffer1>> constantBuffer_;
 		UINT64 fence_{};
 	};
 	PassData passData_;
-
-	struct InstancingRenderItem
+public:
+	struct Camera
 	{
-		struct RenderItem
+		//¡ﬂΩ…√‡
+		enum class Axis
 		{
-			std::optional<UINT> instanceIndex_{};
+			X,
+			Y,
+			Z,
 		};
-		ID3D12PipelineState* pso_{ nullptr };
-		UINT instanceCount_{ 1 };
-		std::optional<Mesh*> mesh_;
-		std::vector<InstanceData> cpuInstanceBuffer_;
-	};
+		Camera();
 
+		void Rotate(Axis axis, float angle);
+		void SetPosition(const XMFLOAT3& position);
+		const XMFLOAT4X4& GetViewMatrix();
+		const XMFLOAT4X4& GetProjMatrix();
+		void SetProjMatrix(float fovY = MathHelper::Pi * 0.25f, float aspect = 1.0f, float nearZ = 1.0f, float farZ = 1000.0f);
+	private:
+		XMFLOAT3 right_{ 1.0f, 0, 0 };
+		XMFLOAT3 up_{ 0, 1.0f, 0 };
+		XMFLOAT3 look_{ 0, 0, 1.0f };
+		XMFLOAT3 position_{ 0, 0, 0 };
+
+		XMFLOAT4X4 view_ = MathHelper::Identity4x4();
+		XMFLOAT4X4 proj_ = MathHelper::Identity4x4();
+
+		float fovY_{ MathHelper::Pi * 0.25f };
+		float aspect_{ 1.0f };
+		float nearZ_{ 1.0f };
+		float farZ_{ 1000.0f };
+
+		bool viewDirty_{ false };
+		bool projDirty_{ false };
+	};
 };

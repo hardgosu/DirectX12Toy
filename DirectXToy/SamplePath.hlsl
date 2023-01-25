@@ -25,7 +25,7 @@ VSOut VSMain(VSInput vin, uint instanceID : SV_InstanceID)
 	VSOut vout = (VSOut)0.0f;
 
 	InstanceData instData = gInstanceData[instanceID];
-	MaterialData matData = gMaterials[gMaterialIndex];
+	MaterialData matData = gMaterials[instData.MaterialIndex];
     // Transform to world space.
     float4 posW = mul(float4(vin.PosL, 1.0f), gWorldMatrix);
     vout.PosW = posW.xyz;
@@ -51,7 +51,7 @@ VSOut VSMain(VSInput vin, uint instanceID : SV_InstanceID)
 float4 PSMain(VSOut pin) : SV_Target
 {
 	// Fetch the material data.
-	MaterialData matData = gMaterials[gMaterialIndex];
+	MaterialData matData = gMaterials[instData.MaterialIndex];
 	float4 diffuseAlbedo = matData.DiffuseAlbedo;
 	float3 fresnelR0 = matData.FresnelR0;
 	float  roughness = matData.Roughness;
