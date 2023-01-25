@@ -323,8 +323,8 @@ public:
 		{
 			ASSERT(desc_.pso_ != nullptr);
 			ASSERT(desc_.mesh_ != nullptr);
-			ASSERT(instanceBufferCount_ >= 0);
-			cpuInstanceBuffer_.resize(instanceBufferCount_);
+			ASSERT(desc_.instanceBufferCount_ >= 0);
+			cpuInstanceBuffer_.resize(desc_.instanceBufferCount_);
 		}
 	};
 	std::vector<InstancingRenderItem> renderItems_;
@@ -347,7 +347,6 @@ public:
 			Y,
 			Z,
 		};
-		Camera();
 
 		void Rotate(Axis axis, float angle);
 		void SetPosition(const XMFLOAT3& position);
@@ -371,4 +370,5 @@ public:
 		bool viewDirty_{ false };
 		bool projDirty_{ false };
 	};
+	Camera camera_;
 };

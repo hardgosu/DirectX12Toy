@@ -183,6 +183,12 @@ void DirectXToy::Startup()
 	LoadTexture(); //어차피 재사용 불가능하면 람다화
 	LoadMesh(); //어차피 재사용 불가능하면 람다화
 	LoadRenderItem(); //어차피 재사용 불가능하면 람다화
+
+	auto prepareScene = [this]()
+	{
+		camera_.SetPosition(XMFLOAT3(0, -3.0f, -10.0f));
+	};
+	prepareScene();
 }
 
 void DirectXToy::Cleanup()
@@ -230,8 +236,8 @@ bool DirectXToy::IsDone()
 
 void DirectXToy::LoadRenderItem()
 {
-	constexpr int NumRenderItems = 4;
-	constexpr int InstanceBufferSize = 30;
+	static constexpr int NumRenderItems = 4;
+	static constexpr int InstanceBufferSize = 30;
 
 	auto buildRenderItem = [this]()
 	{
@@ -618,6 +624,7 @@ const XMFLOAT4X4& DirectXToy::Camera::GetViewMatrix()
 		x, y, z, 1.0f,
 	};
 	viewDirty_ = false;
+	return view_;
 }
 
 void DirectXToy::Camera::SetProjMatrix(float fovY/* PI * 0.25 */, float aspect/* 1.0f */, float nearZ/* 1.0f */, float farZ/* 1000.0f */)

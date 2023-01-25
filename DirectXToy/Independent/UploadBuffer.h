@@ -6,14 +6,6 @@
 
 using Microsoft::WRL::ComPtr;
 
-//상수버퍼의 경우 그래픽 하드웨어는 256바이트 정렬된 버퍼를 기대한다.
-//임의의 바이트 크기를 256배수로 align시켜준다.
-//300을 넘긴다면 512를 리턴하게된다.
-UINT CalcConstantBufferByteSize(UINT byteSize)
-{
-	return (byteSize + 255) & ~255;
-}
-
 template<typename T>
 class UploadBuffer
 {
@@ -65,6 +57,14 @@ public:
 	void CopyData(int elementIndex, const T& data)
 	{
 		memcpy(&pMappedData_[elementIndex * elementByteSize_], &data, sizeof(T));
+	}
+
+	//상수버퍼의 경우 그래픽 하드웨어는 256바이트 정렬된 버퍼를 기대한다.
+	//임의의 바이트 크기를 256배수로 align시켜준다.
+	//300을 넘긴다면 512를 리턴하게된다.
+	static UINT CalcConstantBufferByteSize(UINT byteSize)
+	{
+		return (byteSize + 255) & ~255;
 	}
 
 private:
