@@ -27,10 +27,11 @@
 #include <cassert>
 #include <chrono>
 #include <thread>
-#include "Dependent/IGameApp.h"
-#include "Dependent/d3dx12.h"
-#include "Dependent/DDSTextureLoader.h"
-#include "Dependent/MathHelper.h"
+#include "Independent/IGameApp.h"
+#include "Independent/d3dx12.h"
+#include "Independent/DDSTextureLoader.h"
+#include "Independent/MathHelper.h"
+#include "Independent/UploadBuffer.h"
 #include "Utility.h"
 
 #pragma comment(lib,"d3dcompiler.lib")

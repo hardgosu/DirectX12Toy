@@ -13,9 +13,6 @@
 
 #pragma once
 
-#include "CompleteHeader.h"
-
-
 class IGameApp
 {
 public:
