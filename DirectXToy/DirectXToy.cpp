@@ -141,8 +141,8 @@ void DirectXToy::Startup()
 
 	auto buildShader = [](ShaderMap& outputMap)
 	{
-		outputMap[Shader::StaticMeshVS] = CompileShader(L"SamplePath.hlsl", nullptr, "VSMain", "vs_5_1");
-		outputMap[Shader::StaticMeshPS] = CompileShader(L"SamplePath.hlsl", nullptr, "PSMain", "ps_5_1");
+		outputMap[Shader::StaticMeshVS] = CompileShader(L"Shaders/SamplePath.hlsl", nullptr, "VSMain", "vs_5_1");
+		outputMap[Shader::StaticMeshPS] = CompileShader(L"Shaders/SamplePath.hlsl", nullptr, "PSMain", "ps_5_1");
 	};
 
 	using RootSignature = ComPtr<ID3D12RootSignature>;
