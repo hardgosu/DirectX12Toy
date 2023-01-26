@@ -29,7 +29,7 @@ cbuffer ConstantBuffer1 : register(b0)
 	float4x4 gViewMatrix;
 	float4x4 gProjectionMatrix;
 	float4x4 gShadowMatrix;
-    float4x4 gTextureMatrix;
+    float4x4 gTextureMatrix; //TODO : 제거
 	float3 gEyePosW;
 	float empty;
 	float gTotalTime;
