@@ -237,21 +237,34 @@ void DirectXToy::RenderScene()
 	};
 	beginRenderPass();
 
-	std::vector<std::function<void(float)>> renderPasses
+	std::vector<std::function<void()>> renderPasses
 	{
-		[this](float elapsedTime) //Sample pass
+		[this]() //Sample pass
 		{
 			std::vector <ID3D12DescriptorHeap*> descriptorHeaps
 			{
-
+				descriptorHeapCBVSRVUAV_.Get(),
 			};
 			commandList_->SetDescriptorHeaps(descriptorHeaps.size(), descriptorHeaps.data());
 			commandList_->SetGraphicsRootSignature(rootSignature1_.Get());
-			// 루트 파라미터
+
+
+			commandList_->SetGraphicsRootConstantBufferView(0, passData_.constantBuffer_->Resource()->GetGPUVirtualAddress());
+			//commandList_->SetGraphicsRootConstantBufferView(1 )
+			//commandList_->SetGraphicsRootConstantBufferView(2, )
+			//commandList_->SetGraphicsRootConstantBufferView(3, )
+			commandList_->SetGraphicsRootShaderResourceView(4, passData_.materialBuffer_->Resource()->GetGPUVirtualAddress());
+			commandList_->SetGraphicsRootConstantBufferView(5, passData_.instanceBuffer_->Resource()->GetGPUVirtualAddress());
+			//commandList_->SetGraphicsRootDescriptorTable(6)
+			//commandList_->SetGraphicsRootDescriptorTable(7)
+			commandList_->SetGraphicsRootDescriptorTable(8, 
+				descriptorHandleAccesors_[descriptorHeapCBVSRVUAV_.Get()].GetGPUHandle(passData_.cubemapSRVIndex_));
+			commandList_->SetGraphicsRootDescriptorTable(9, 
+				descriptorHandleAccesors_[descriptorHeapCBVSRVUAV_.Get()].GetGPUHandle(0));
 			// 드로우 콜
 		},
 
-		[this](float elapsedTime) //Shadow pass
+		[this]() //Shadow pass
 		{
 
 		},
@@ -270,6 +283,8 @@ void DirectXToy::RenderScene()
 			{ 
 				ASSERT_SUCCEEDED(elem->Close()); 
 			});
+
+		commandQueue_->ExecuteCommandLists(commandLists.size(), commandLists.data());
 
 		//present
 		//control backbuffer
@@ -427,8 +442,10 @@ void DirectXToy::LoadTexture(/*...*/)
 	};
 
 	ASSERT(texFilenames.size() == texNames.size());
-
-	for (int i = 0; i < (int)texNames.size(); ++i)
+	CD3DX12_CPU_DESCRIPTOR_HANDLE hDescriptor(descriptorHeapCBVSRVUAV_->GetCPUDescriptorHandleForHeapStart());
+	auto srvDescriptorSize = descriptorHandleAccesors_[descriptorHeapCBVSRVUAV_.Get()].handleIncrementSize_;
+	
+	for (size_t i{}; i < texNames.size(); ++i)
 	{
 		auto& texture = textures_[texNames[i]] = Texture();
 		texture.name_ = texNames[i];
@@ -436,7 +453,34 @@ void DirectXToy::LoadTexture(/*...*/)
 		ASSERT_SUCCEEDED(CreateDDSTextureFromFile12(device_.Get(),
 			commandList_.Get(), texture.filePath_.c_str(),
 			texture.resource_, texture.uploadHeap_));
+
+		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+		srvDesc.Texture2D.MostDetailedMip = 0;
+		srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+		srvDesc.Format = texture.resource_->GetDesc().Format;
+		srvDesc.Texture2D.MipLevels = texture.resource_->GetDesc().MipLevels;
+
+		device_->CreateShaderResourceView(texture.resource_.Get(), &srvDesc, hDescriptor);
+
+		// next descriptor
+		hDescriptor.Offset(1, srvDescriptorSize);
 	}
+
+	passData_.cubemapSRVIndex_ = texNames.size();
+	auto& skyCubeMap = textures_["skyCubeMap"].resource_;
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
+	srvDesc.Texture2D.MostDetailedMip = 0;
+	srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+	srvDesc.TextureCube.MostDetailedMip = 0;
+	srvDesc.TextureCube.MipLevels = skyCubeMap->GetDesc().MipLevels;
+	srvDesc.TextureCube.ResourceMinLODClamp = 0.0f;
+	srvDesc.Format = skyCubeMap->GetDesc().Format;
+	device_->CreateShaderResourceView(skyCubeMap.Get(), &srvDesc, hDescriptor);
+
 }
 
 void DirectXToy::LoadMesh(/*...*/)

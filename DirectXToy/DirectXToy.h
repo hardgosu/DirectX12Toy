@@ -335,6 +335,8 @@ public:
 		std::unique_ptr<UploadBuffer<InstanceData>> instanceBuffer_;
 		std::unique_ptr<UploadBuffer<ConstantBuffer1>> constantBuffer_;
 		UINT64 fence_{};
+		UINT cubemapSRVIndex_{ 0 };
+		UINT shadowmapSRVIndex_{ 0 };
 	};
 	PassData passData_;
 public:
