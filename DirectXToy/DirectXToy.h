@@ -36,13 +36,14 @@ private:
 
 	struct DescriptorHandleAccesor
 	{
+		DescriptorHandleAccesor() {};
 		DescriptorHandleAccesor(ID3D12DescriptorHeap* descriptorHeap, UINT handleIncrementSize) :
 			source_{ descriptorHeap }, handleIncrementSize_{ handleIncrementSize } {}
 		CD3DX12_GPU_DESCRIPTOR_HANDLE GetGPUHandle(int index) const;
 		CD3DX12_CPU_DESCRIPTOR_HANDLE GetCPUHandle(int index) const;
 
 		ID3D12DescriptorHeap* source_{ nullptr };
-		UINT handleIncrementSize_;
+		UINT handleIncrementSize_{};
 	};
 	std::map<ID3D12DescriptorHeap*, DescriptorHandleAccesor> descriptorHandleAccesors_;
 

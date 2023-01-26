@@ -229,7 +229,7 @@ void DirectXToy::RenderScene()
 	auto beginRenderPass = [this]()
 	{
 		ASSERT_SUCCEEDED(commandAllocator_->Reset());
-		std::vector<ID3D12CommandList*> commandLists
+		std::vector<ID3D12GraphicsCommandList*> commandLists
 		{
 			commandList_.Get(),
 		};
@@ -269,7 +269,7 @@ void DirectXToy::RenderScene()
 
 		},
 	};
-	std::for_each(renderPasses.begin(), renderPasses.end(), [this](auto& elem) {elem(elapsedTime_)});
+	std::for_each(renderPasses.begin(), renderPasses.end(), [this](auto& elem) { elem(); });
 
 	auto endRenderPass = [this]()
 	{
@@ -281,7 +281,7 @@ void DirectXToy::RenderScene()
 		};
 		std::for_each(commandLists.begin(), commandLists.end(), [this](auto& elem) 
 			{ 
-				ASSERT_SUCCEEDED(elem->Close()); 
+				ASSERT_SUCCEEDED(reinterpret_cast<ID3D12GraphicsCommandList*>(elem)->Close()); 
 			});
 
 		commandQueue_->ExecuteCommandLists(commandLists.size(), commandLists.data());
