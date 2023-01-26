@@ -19,10 +19,10 @@
 
 struct InstanceData
 {
-	float4x4 gWorldMatrix;
+	float4x4 WorldMatrix;
 	float4x4 TexTransform;
 	uint     MaterialIndex;
-	uint     gTextureIndex;
+	uint     TextureIndex;
 	uint     InstPad1;
 	uint     InstPad2;
 };
@@ -48,10 +48,10 @@ struct MaterialData
 	float3 FresnelR0;
 	float Roughness;
 	float4x4 MaterialTransform;
-	uint normalMapIndex;
-	uint diffuseMapIndex;
-	uint specularMapIndex;	
-	uint roughnesMapIndex;
+	uint NormalMapIndex;
+	uint DiffuseMapIndex;
+	uint SpecularMapIndex;	
+	uint RoughnesMapIndex;
 };
 //조명계산에 쓰일 캡슐
 struct Material

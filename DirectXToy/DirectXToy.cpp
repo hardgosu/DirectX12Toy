@@ -226,7 +226,56 @@ void DirectXToy::Update(float deltaT)
 
 void DirectXToy::RenderScene()
 {
+	auto beginRenderPass = [this]()
+	{
+		ASSERT_SUCCEEDED(commandAllocator_->Reset());
+		std::vector<ID3D12CommandList*> commandLists
+		{
+			commandList_.Get(),
+		};
+		std::for_each(commandLists.begin(), commandLists.end(), [this](auto& elem) { elem->Reset(commandAllocator_.Get(), nullptr); });
+	};
+	beginRenderPass();
 
+	std::vector<std::function<void(float)>> renderPasses
+	{
+		[this](float elapsedTime) //Sample pass
+		{
+			std::vector <ID3D12DescriptorHeap*> descriptorHeaps
+			{
+
+			};
+			commandList_->SetDescriptorHeaps(descriptorHeaps.size(), descriptorHeaps.data());
+			commandList_->SetGraphicsRootSignature(rootSignature1_.Get());
+			// 루트 파라미터
+			// 드로우 콜
+		},
+
+		[this](float elapsedTime) //Shadow pass
+		{
+
+		},
+	};
+	std::for_each(renderPasses.begin(), renderPasses.end(), [this](auto& elem) {elem(elapsedTime_)});
+
+	auto endRenderPass = [this]()
+	{
+		//backbuffer transition
+		//execute
+		std::vector<ID3D12CommandList*> commandLists
+		{
+			commandList_.Get(),
+		};
+		std::for_each(commandLists.begin(), commandLists.end(), [this](auto& elem) 
+			{ 
+				ASSERT_SUCCEEDED(elem->Close()); 
+			});
+
+		//present
+		//control backbuffer
+		//control fence(+FR)
+	};
+	endRenderPass();
 }
 
 bool DirectXToy::IsDone()

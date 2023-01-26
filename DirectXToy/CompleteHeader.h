@@ -26,6 +26,7 @@
 #include <sstream>
 #include <cassert>
 #include <chrono>
+#include <functional>
 #include <thread>
 #include "Independent/IGameApp.h"
 #include "Independent/d3dx12.h"

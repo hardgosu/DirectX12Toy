@@ -18,6 +18,7 @@ struct VSOut
     float3 NormalW : NORMAL;
 	float3 TangentW : TANGENT;
 	float2 TexC    : TEXCOORD;
+    uint instanceID : INSTANCEID;
 };
 
 VSOut VSMain(VSInput vin, uint instanceID : SV_InstanceID)
@@ -27,13 +28,13 @@ VSOut VSMain(VSInput vin, uint instanceID : SV_InstanceID)
 	InstanceData instData = gInstanceData[instanceID];
 	MaterialData matData = gMaterials[instData.MaterialIndex];
     // Transform to world space.
-    float4 posW = mul(float4(vin.PosL, 1.0f), instData.gWorldMatrix);
+    float4 posW = mul(float4(vin.PosL, 1.0f), instData.WorldMatrix);
     vout.PosW = posW.xyz;
 
     // Assumes nonuniform scaling; otherwise, need to use inverse-transpose of world matrix.
 	// 비균등비례 하지마세요
-    vout.NormalW = mul(vin.NormalL, (float3x3)instData.gWorldMatrix);
-	vout.TangentW = mul(vin.TangentL, (float3x3)instData.gWorldMatrix);
+    vout.NormalW = mul(vin.NormalL, (float3x3)instData.WorldMatrix);
+	vout.TangentW = mul(vin.TangentL, (float3x3)instData.WorldMatrix);
 
     // Transform to homogeneous clip space.
     vout.PosH = mul(mul(posW, gViewMatrix), gProjectionMatrix);
@@ -44,13 +45,13 @@ VSOut VSMain(VSInput vin, uint instanceID : SV_InstanceID)
 
     // Generate projective tex-coords to project shadow map onto scene.
     vout.ShadowPosH = mul(posW, gShadowMatrix);
-
+    vout.instanceID = instanceID;
 	return vout;
 }
 
-float4 PSMain(VSOut pin, uint instanceID : SV_InstanceID) : SV_Target
+float4 PSMain(VSOut pin) : SV_Target
 {
-	InstanceData instData = gInstanceData[instanceID];
+	InstanceData instData = gInstanceData[pin.instanceID];
 	// Fetch the material data.
 	MaterialData matData = gMaterials[instData.MaterialIndex];
 	float4 diffuseAlbedo = matData.DiffuseAlbedo;

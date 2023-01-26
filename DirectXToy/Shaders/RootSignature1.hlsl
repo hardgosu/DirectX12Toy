@@ -54,6 +54,7 @@ cbuffer cbObjectInfo : register(b1)
 
 cbuffer cbObjectInfo : register(b1)
 {
+    float4x4 dummy;
 }
 
 // Constant data that varies per pass.
