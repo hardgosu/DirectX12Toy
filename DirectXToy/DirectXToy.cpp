@@ -1,5 +1,6 @@
 #include "DirectXToy.h"
 #include "Independent/GeometryGenerator.h"
+#include <d3d12sdklayers.h>
 
 extern HWND g_hWnd;
 extern uint32_t g_DisplayWidth;
@@ -7,16 +8,15 @@ extern uint32_t g_DisplayHeight;
 
 void DirectXToy::Startup()
 {
-	using Adapter = IDXGIAdapter1;
-	using Factory = IDXGIFactory4;
-	using SwapChain = IDXGISwapChain3;
-	using Device = decltype(device_);
+	//ComPtr<ID3D12Debug> debugController;
+	//auto hrr = (D3D12GetDebugInterface(IID_PPV_ARGS(&debugController)));
+	//debugController->EnableDebugLayer();
 
-	auto createDeviceWithBestAdapter = [](Factory* factory, Device& outputDevice)
+	auto createDeviceWithBestAdapter = [](Factory& factory, Device& outputDevice)
 	{
 		//enum adapters
-		ComPtr<Adapter> bestAdapter;
-		ComPtr<Adapter> iterAdapter;
+		ComPtr<IDXGIAdapter1> bestAdapter;
+		ComPtr<IDXGIAdapter1> iterAdapter;
 		SIZE_T MaxSize = 0;
 		for (UINT i{}; factory->EnumAdapters1(i, &iterAdapter) != DXGI_ERROR_NOT_FOUND; ++i)
 		{
@@ -62,9 +62,9 @@ void DirectXToy::Startup()
 		}
 	};
 	//init DXGI Factory
-	ASSERT_SUCCEEDED(CreateDXGIFactory(IID_PPV_ARGS(&iDXGIFactory_)));
+	ASSERT_SUCCEEDED(CreateDXGIFactory1(IID_PPV_ARGS(&iDXGIFactory_)));
 
-	createDeviceWithBestAdapter(iDXGIFactory_.Get(), device_);
+	createDeviceWithBestAdapter(iDXGIFactory_, device_);
 	ASSERT(device_ != nullptr);
 
 	auto commandListType = D3D12_COMMAND_LIST_TYPE::D3D12_COMMAND_LIST_TYPE_DIRECT;
@@ -80,7 +80,7 @@ void DirectXToy::Startup()
 
 	D3D12_DESCRIPTOR_HEAP_DESC heapDesc{};
 	heapDesc.NodeMask = 0;
-	heapDesc.NumDescriptors = descriptorHeapSize_;
+	heapDesc.NumDescriptors = srvDescriptorHeapSize_;
 	heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAGS::D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 	heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE::D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
 	ASSERT_SUCCEEDED(device_->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&descriptorHeapDSV_)));
@@ -88,12 +88,14 @@ void DirectXToy::Startup()
 	descriptorHandleAccesors_.insert(std::make_pair(descriptorHeapDSV_.Get(), 
 		DescriptorHandleAccesor(descriptorHeapDSV_.Get(), dsvHandleIncrementSize_)));
 
+	heapDesc.NumDescriptors = SwapChainCount; //필요하다면 더 만드세요. : ex 큐브매핑, 지연 렌더링
 	heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE::D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
 	ASSERT_SUCCEEDED(device_->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&descriptorHeapRTV_)));
 	rtvHandleIncrementSize_ = device_->GetDescriptorHandleIncrementSize(heapDesc.Type);
 	descriptorHandleAccesors_.insert(std::make_pair(descriptorHeapRTV_.Get(),
 		DescriptorHandleAccesor(descriptorHeapRTV_.Get(), rtvHandleIncrementSize_)));
 
+	heapDesc.NumDescriptors = 2; //필요하다면 더 만드세요 : ex 거울반사, 그림자 매핑 외
 	heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE::D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	ASSERT_SUCCEEDED(device_->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&descriptorHeapCBVSRVUAV_)));
 	cbvHandleIncrementSize_ = device_->GetDescriptorHandleIncrementSize(heapDesc.Type);
@@ -181,6 +183,7 @@ void DirectXToy::Startup()
 	buildShader(shaderMap_);
 	buildPSODesc(psoDescMap_, rootSignature1_, shaderMap_, inputElementsMap_);
 	buildPSO(psoMap_, psoDescMap_, device_);
+	ResetSwapChain();
 	LoadTexture(); //어차피 재사용 불가능하면 람다화
 	LoadMesh(); //어차피 재사용 불가능하면 람다화
 	LoadRenderItem(); //어차피 재사용 불가능하면 람다화
@@ -570,6 +573,94 @@ void DirectXToy::LoadMesh(/*...*/)
 	buildMesh(meshMap_, meshDataList, vertexBuffer1);
 }
 
+void DirectXToy::ResetSwapChain()
+{
+	/*
+	DXGI_SWAP_CHAIN_DESC desc;
+	desc.BufferDesc.Width = g_DisplayWidth;
+	desc.BufferDesc.Height = g_DisplayHeight;
+	desc.BufferDesc.RefreshRate.Numerator = 60;
+	desc.BufferDesc.RefreshRate.Denominator = 1;
+	desc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	desc.BufferDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
+	desc.BufferDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
+	desc.SampleDesc.Count = 1;
+	desc.SampleDesc.Quality = 0;
+	desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+	desc.BufferCount = SwapChainCount;
+	desc.OutputWindow = g_hWnd;
+	desc.Windowed = true;
+	desc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+	desc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
+	*/
+	
+	/*
+	DXGI_SWAP_CHAIN_FULLSCREEN_DESC desc2;
+	desc2.RefreshRate.Denominator = 1;
+	desc2.RefreshRate.Numerator = 60;
+	desc2.Scaling = DXGI_MODE_SCALING_STRETCHED;
+	desc2.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
+	desc2.Windowed = FALSE; //창모드 아님
+	*/
+
+	//hr = factory->CreateSwapChain(commandQueue.Get(), &desc, reinterpret_cast<IDXGISwapChain**>(output.GetAddressOf()));
+
+	commandList_.Reset();
+	for (auto& buffer : swapChainBuffers_)
+	{
+		buffer.Reset();
+	}
+	depthStencilBuffer_.Reset();
+
+	if (iDXGISwapChain_ == nullptr)
+	{
+		DXGI_SWAP_CHAIN_DESC1 swapChainDesc = {};
+		swapChainDesc.BufferCount = SwapChainCount;
+		swapChainDesc.Width = g_DisplayWidth;
+		swapChainDesc.Height = g_DisplayHeight;
+		swapChainDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+		swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+		swapChainDesc.SampleDesc.Count = 1;
+
+		auto hr = iDXGIFactory_->CreateSwapChainForHwnd(commandQueue_.Get(), g_hWnd, &swapChainDesc, nullptr, nullptr,
+			reinterpret_cast<IDXGISwapChain1**>(iDXGISwapChain_.GetAddressOf()));
+	}
+	currentBackBufferIndex_ = 0;
+	iDXGISwapChain_->ResizeBuffers(SwapChainCount, g_DisplayWidth, g_DisplayHeight, DXGI_FORMAT_R8G8B8A8_UNORM,
+		DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH);
+	
+	int i{};
+	for (auto& buffer : swapChainBuffers_)
+	{
+		auto handle = descriptorHandleAccesors_[descriptorHeapRTV_.Get()].GetCPUHandle(i++);
+		device_->CreateRenderTargetView(buffer.Get(), nullptr, handle);
+	}
+
+	CD3DX12_RESOURCE_DESC dsResourceDesc = CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_R24G8_TYPELESS, g_DisplayWidth, g_DisplayHeight);
+	dsResourceDesc.DepthOrArraySize = 1;
+	dsResourceDesc.MipLevels = 1;
+	dsResourceDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+
+	D3D12_CLEAR_VALUE clearValue;
+	clearValue.Format = DXGI_FORMAT_R24G8_TYPELESS;
+	clearValue.DepthStencil.Depth = 1.0f;
+	clearValue.DepthStencil.Stencil = 0;
+
+	ASSERT_SUCCEEDED(device_->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT), D3D12_HEAP_FLAG_NONE,
+		&dsResourceDesc, D3D12_RESOURCE_STATE_COMMON,
+		&clearValue,IID_PPV_ARGS(depthStencilBuffer_.GetAddressOf())));
+
+	D3D12_DEPTH_STENCIL_VIEW_DESC depthSencilViewDesc;
+	depthSencilViewDesc.Flags = D3D12_DSV_FLAG_NONE;
+	depthSencilViewDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+	depthSencilViewDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+	depthSencilViewDesc.Texture2D.MipSlice = 0;
+
+	device_->CreateDepthStencilView(depthStencilBuffer_.Get(), &depthSencilViewDesc,
+		descriptorHandleAccesors_[descriptorHeapDSV_.Get()].GetCPUHandle(0));
+}
+
 void DirectXToy::VertexBuffer::Confirm(ID3D12Device* pDevice, ID3D12GraphicsCommandList* pCommandList, bool clearData /*false*/)
 {
 	defaultVertexBuffer_ = CreateDefaultBuffer(pDevice, pCommandList, cpuVertexBuffer_.get(), vbSize_, uploadVertexBuffer_, clearData);
@@ -577,8 +668,6 @@ void DirectXToy::VertexBuffer::Confirm(ID3D12Device* pDevice, ID3D12GraphicsComm
 
 	defaultIndexBuffer_ = CreateDefaultBuffer(pDevice, pCommandList, cpuIndexBuffer_.get(), ibSize_, uploadIndexBuffer_, clearData);
 	ASSERT(defaultIndexBuffer_ != nullptr);
-
-
 }
 
 CD3DX12_CPU_DESCRIPTOR_HANDLE DirectXToy::DescriptorHandleAccesor::GetCPUHandle(int index) const

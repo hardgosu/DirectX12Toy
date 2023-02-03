@@ -17,18 +17,21 @@ public:
 	std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> GetStaticSamplers() const;
 private:
 
-	//Camera m_Camera;
 	//std::unique_ptr<CameraController> m_CameraController;
+	using Adapter = ComPtr<IDXGIAdapter3>;
+	using Factory = ComPtr<IDXGIFactory4>;
+	using SwapChain = ComPtr<IDXGISwapChain4>;
+	using Device = ComPtr<ID3D12Device>;
+	using CommandQueue = ComPtr<ID3D12CommandQueue>;
 
 	D3D12_VIEWPORT m_MainViewport;
 	D3D12_RECT m_MainScissor;
-	ComPtr<IDXGIFactory4> iDXGIFactory_;
-	ComPtr<IDXGIAdapter3> iDXGIAdapter_;
-	ComPtr<IDXGISwapChain4> iDXGISwapChain_;
+	Factory iDXGIFactory_;
+	Adapter iDXGIAdapter_;
+	Device device_;
 
-	ComPtr<ID3D12Device> device_;
 	ComPtr<ID3D12CommandAllocator> commandAllocator_;
-	ComPtr<ID3D12CommandQueue> commandQueue_;
+	CommandQueue commandQueue_;
 	ComPtr<ID3D12GraphicsCommandList> commandList_;
 	ComPtr<ID3D12Fence> fence_;
 	UINT64 fenceValue_{};
@@ -53,7 +56,7 @@ private:
 	UINT32 dsvHandleIncrementSize_{};
 	ComPtr<ID3D12DescriptorHeap> descriptorHeapCBVSRVUAV_;
 	UINT32 cbvHandleIncrementSize_{};
-	UINT descriptorHeapSize_{ 256 };
+	UINT srvDescriptorHeapSize_{ 256 };
 
 	ComPtr<ID3D12RootSignature> rootSignature1_;
 
@@ -374,4 +377,14 @@ public:
 		bool projDirty_{ false };
 	};
 	Camera camera_;
+public:
+	static constexpr unsigned SwapChainCount = 2;
+	SwapChain iDXGISwapChain_;
+	std::array<ComPtr<ID3D12Resource>, SwapChainCount> swapChainBuffers_;
+	ComPtr<ID3D12Resource> depthStencilBuffer_;
+	UINT currentBackBufferIndex_{};
+	UINT backBufferFormat_{ DXGI_FORMAT_R8G8B8A8_UNORM };
+
+	void ResetSwapChain();
+public:
 };
