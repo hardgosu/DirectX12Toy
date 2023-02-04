@@ -8,9 +8,9 @@ extern uint32_t g_DisplayHeight;
 
 void DirectXToy::Startup()
 {
-	//ComPtr<ID3D12Debug> debugController;
-	//auto hrr = (D3D12GetDebugInterface(IID_PPV_ARGS(&debugController)));
-	//debugController->EnableDebugLayer();
+	ComPtr<ID3D12Debug> debugController;
+	auto hrr = (D3D12GetDebugInterface(IID_PPV_ARGS(&debugController)));
+	debugController->EnableDebugLayer();
 
 	auto createDeviceWithBestAdapter = [](Factory& factory, Device& outputDevice)
 	{
@@ -230,6 +230,9 @@ void DirectXToy::Update(float deltaT)
 
 void DirectXToy::RenderScene()
 {
+	currentPassDataIndex_ = (currentPassDataIndex_ + 1) % NumFrameResource;
+	auto& currentPassData = passData_[currentPassDataIndex_];
+
 	auto beginRenderPass = [this]()
 	{
 		ASSERT_SUCCEEDED(commandAllocator_->Reset());
@@ -238,6 +241,8 @@ void DirectXToy::RenderScene()
 			commandList_.Get(),
 		};
 		std::for_each(commandLists.begin(), commandLists.end(), [this](auto& elem) { elem->Reset(commandAllocator_.Get(), nullptr); });
+	
+		
 	};
 	beginRenderPass();
 
@@ -293,6 +298,7 @@ void DirectXToy::RenderScene()
 		//present
 		//control backbuffer
 		//control fence(+FR)
+		
 	};
 	endRenderPass();
 }
@@ -315,13 +321,13 @@ void DirectXToy::LoadRenderItem()
 		desc.pso_ = psoMap_[PSO::StaticMesh].Get();
 		desc.instanceBufferCount_ = InstanceBufferSize;
 
-		desc.mesh_ = &meshMap_["GeoSphere1"];
+		desc.mesh_ = &meshMap_["GeoSphere"];
 		renderItems_.push_back(desc);
-		desc.mesh_ = &meshMap_["GeoSphere2"];
+		desc.mesh_ = &meshMap_["GeoSphere"];
 		renderItems_.push_back(desc);
-		desc.mesh_ = &meshMap_["Box1"];
+		desc.mesh_ = &meshMap_["Box"];
 		renderItems_.push_back(desc);
-		desc.mesh_ = &meshMap_["Box2"];
+		desc.mesh_ = &meshMap_["Box"];
 		renderItems_.push_back(desc);
 	};
 	buildRenderItem();
@@ -489,7 +495,9 @@ void DirectXToy::LoadTexture(/*...*/)
 
 void DirectXToy::LoadMesh(/*...*/)
 {
-	auto convertToMyBuffer = [this](const GeometryGenerator::MeshData& meshData, VertexBuffer& vertexBuffer)
+	//1버퍼는 1메시에 대응하지 않는다.
+	auto buildMesh = [](const GeometryGenerator::MeshData& meshData, VertexBuffer& vertexBuffer)
+		-> Mesh
 	{
 		std::vector<Vertex> vertexContainer;
 		std::vector<UINT16> indexContainer;
@@ -512,8 +520,12 @@ void DirectXToy::LoadMesh(/*...*/)
 			indexContainer[i] = static_cast<UINT16>(meshData.Indices32[i]);
 		}
 
-		vertexBuffer.AddToVB(vertexContainer.data(), sizeof(Vertex) * vertexContainer.size());
-		vertexBuffer.AddToIB(indexContainer.data(), sizeof(UINT16) * indexContainer.size());
+		std::optional<std::vector<UINT16>> indices;
+		if (indexContainer.empty() == false)
+		{
+			indices.emplace(std::move(indexContainer));
+		}
+		return vertexBuffer.AddToVB(vertexContainer, indices);
 	};
 
 	auto& vertexBuffer1 = vertexBufferPool_["Main"];
@@ -530,47 +542,24 @@ void DirectXToy::LoadMesh(/*...*/)
 	using MeshDataList = std::map<std::string, const GeometryGenerator::MeshData*>;
 	MeshDataList meshDataList
 	{
-		{"GeoSphere1", &meshData },
-		{"Box1", &meshData2 },
-		{"Box2", &meshData2 },
-		{"GeoSphere2", &meshData },
+		{"GeoSphere", &meshData },
+		{"Box", &meshData2 },
 	};
 
-	for (const auto& [_, pMeshData] : meshDataList)
+	for (const auto& [meshName, pMeshData] : meshDataList)
 	{
-		convertToMyBuffer(*pMeshData, vertexBuffer1);
+		meshMap_[meshName] = buildMesh(*pMeshData, vertexBuffer1);
 	}
 
 	vertexBuffer1.Confirm(device_.Get(), commandList_.Get());
+}
 
-	auto buildMesh = [](MeshMap& output, 
-		const MeshDataList& meshDatas,
-		const VertexBuffer& sourceBuffer)
-	{
-		int startIndexLocationCounter{};
-		int startVertexLocationCounter{};
+void DirectXToy::ExecuteCommandList(ID3D12CommandList* commandList, ID3D12Fence* fence,
+	ID3D12CommandQueue* commandQueue) const
+{
 
-		int i{};
-		for (const auto& [name, pMeshData] : meshDatas)
-		{
-			const auto& meshData = *pMeshData;
-			Mesh::Desc desc;
-			desc.indexCount_ = meshData.Indices32.size();
-			desc.indexBufferByteSize_ = sizeof(UINT16) * desc.indexCount_;
-			desc.vertexByteSize_ = sizeof(Vertex);
-			desc.vertexBufferByteSize_ = meshData.Vertices.size() * desc.vertexByteSize_;
-			desc.startIndexLocation_ = startIndexLocationCounter;
-			desc.baseVertexLocation_ = startVertexLocationCounter;
-			desc.sourceBuffer_ = const_cast<VertexBuffer*>(&sourceBuffer);
+	commandQueue
 
-			startVertexLocationCounter += meshData.Vertices.size();
-			startIndexLocationCounter += meshData.Indices32.size();
-
-			output[name] = desc;
-			++i;
-		}
-	};
-	buildMesh(meshMap_, meshDataList, vertexBuffer1);
 }
 
 void DirectXToy::ResetSwapChain()

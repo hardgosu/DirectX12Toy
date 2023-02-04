@@ -157,6 +157,54 @@ public:
 	};
 	// skinnedVertex?
 
+	struct VertexBuffer;
+	struct Mesh
+	{
+		//My View
+		UINT vertexByteSize_{};
+		UINT vertexBufferByteSize_{};
+		UINT vertexCount_{};
+		UINT startVertexLocation_{};
+
+		struct IBDesc
+		{
+			DXGI_FORMAT indexFormat_{ DXGI_FORMAT_R16_UINT };
+			UINT indexBufferByteSize_{};
+			UINT indexCount_{};
+			UINT startIndexLocation_{};
+		};
+		std::optional<IBDesc> ibDesc_;
+
+		VertexBuffer* sourceBuffer_{ nullptr };
+
+		D3D12_VERTEX_BUFFER_VIEW GetVertexBufferView() const
+		{
+			D3D12_VERTEX_BUFFER_VIEW vbv;
+			vbv.BufferLocation = sourceBuffer_->defaultVertexBuffer_->GetGPUVirtualAddress();
+			vbv.StrideInBytes = vertexByteSize_;
+			vbv.SizeInBytes = vertexBufferByteSize_;
+
+			return vbv;
+		}
+
+		std::optional<D3D12_INDEX_BUFFER_VIEW> GetIndexBufferView() const
+		{
+			if (ibDesc_.has_value() == false)
+			{
+				return {};
+			}
+
+			D3D12_INDEX_BUFFER_VIEW ibv;
+			ibv.BufferLocation = sourceBuffer_->defaultIndexBuffer_->GetGPUVirtualAddress();
+			ibv.Format = ibDesc_->indexFormat_;
+			ibv.SizeInBytes = ibDesc_->indexBufferByteSize_;
+
+			return { ibv };
+		}
+	};
+	using MeshMap = std::map<std::string, Mesh>;
+	MeshMap meshMap_;
+
 	//편의를 위해 VertexBuffer와 VertexBufferView가 1:1 관계라고 가정
 	//원래 1:다 관계
 	//모든 포맷의 정점데이터를 수용할수있다.
@@ -171,12 +219,14 @@ public:
 		ComPtr<ID3D12Resource> uploadVertexBuffer_; //gpu for upload
 		std::unique_ptr<Byte[]> cpuVertexBuffer_{ nullptr };
 		size_t vbSize_{};
+	
+		UINT totalVertexCount_{};
 
 		ComPtr<ID3D12Resource> defaultIndexBuffer_; //gpu
 		ComPtr<ID3D12Resource> uploadIndexBuffer_; //gpu for upload
 		std::unique_ptr<Byte[]> cpuIndexBuffer_{ nullptr };
 		size_t ibSize_{};
-
+		UINT totalIndexCount_{};
 
 		VertexBuffer()
 		{
@@ -184,72 +234,48 @@ public:
 			cpuIndexBuffer_ = std::make_unique<Byte[]>(ReservedIBSIze);
 		}
 
-		void AddToVB(const void* pData, size_t byteSize)
+		template <typename Vertex>
+		Mesh AddToVB(const std::vector<Vertex>& vertices, const std::optional<std::vector<UINT16>>& indices)
 		{
-			ASSERT(ReservedVBSize >= byteSize + vbSize_);
+			size_t byteSizeVB = vertices.size() * sizeof(Vertex);
+			ASSERT(ReservedVBSize >= byteSizeVB + vbSize_);
 
-			std::memcpy(cpuVertexBuffer_.get() + vbSize_, pData, byteSize);
-			vbSize_ += byteSize;
+			std::memcpy(cpuVertexBuffer_.get() + vbSize_, vertices.data(), byteSizeVB);
+			vbSize_ += byteSizeVB;
+
+			MeshDesc ret;
+			ret.startVertexLocation_ = totalVertexCount_;
+			ret.vertexByteSize_ = sizeof(Vertex);
+			ret.vertexBufferByteSize_ = byteSizeVB;
+			ret.vertexCount_ = vertices.size();
+
+			totalVertexCount_ += vertices.size();
+
+			if (indices.has_value())
+			{
+				auto& indices2 = indices.value();
+				size_t byteSizeIB = indices2.size() * sizeof(UINT16);
+				ASSERT(ReservedIBSIze >= byteSizeIB + ibSize_);
+
+				std::memcpy(cpuIndexBuffer_.get() + ibSize_, indices2.data(), byteSizeIB);
+				ibSize_ += byteSizeIB;
+
+				ret.ibDesc_.emplace();
+				ret.ibDesc_->startIndexLocation_ = totalIndexCount_;
+				ret.ibDesc_->indexBufferByteSize_ = byteSizeIB;
+				ret.ibDesc_->indexCount_ = indices2.size();
+
+				totalIndexCount_ += indices2.size();
+			}
+
+			ret.sourceBuffer_ = this;
+			return ret;
 		}
-
-		void AddToIB(const void* pData, size_t byteSize)
-		{
-			ASSERT(ReservedIBSIze >= byteSize + ibSize_);
-
-			std::memcpy(cpuVertexBuffer_.get() + ibSize_, pData, byteSize);
-			ibSize_ += byteSize;
-		}
-
 		void Confirm(ID3D12Device* pDevice, ID3D12GraphicsCommandList* pCommandList, bool clearData = false);
 	};
 	std::map<std::string, VertexBuffer> vertexBufferPool_; //1~2개정도만 만들면 충분..
 public:
 	void LoadRenderItem();
-	struct Mesh
-	{
-		D3D12_VERTEX_BUFFER_VIEW GetVertexBufferView() const
-		{
-			D3D12_VERTEX_BUFFER_VIEW vbv;
-			vbv.BufferLocation = desc_.sourceBuffer_->defaultVertexBuffer_->GetGPUVirtualAddress();
-			vbv.StrideInBytes = desc_.vertexByteSize_;
-			vbv.SizeInBytes = desc_.vertexBufferByteSize_;
-
-			return vbv;
-		}
-
-		D3D12_INDEX_BUFFER_VIEW GetIndexBufferView() const
-		{
-			D3D12_INDEX_BUFFER_VIEW ibv;
-			ibv.BufferLocation = desc_.sourceBuffer_->defaultIndexBuffer_->GetGPUVirtualAddress();
-			ibv.Format = desc_.indexFormat_;
-			ibv.SizeInBytes = desc_.indexBufferByteSize_;
-
-			return ibv;
-		}
-
-		struct Desc
-		{
-			//My View
-			UINT vertexByteSize_{};
-			UINT vertexBufferByteSize_{};
-			DXGI_FORMAT indexFormat_{ DXGI_FORMAT_R16_UINT };
-			UINT indexBufferByteSize_{};
-
-			UINT indexCount_{};
-			UINT startIndexLocation_{};
-			INT baseVertexLocation_{};
-
-			VertexBuffer* sourceBuffer_{ nullptr };
-		};
-		Desc desc_;
-
-		Mesh() {};
-		Mesh(const Desc& desc) : desc_{ desc }
-		{
-		};
-	};
-	using MeshMap = std::map<std::string, Mesh>;
-	MeshMap meshMap_;
 
 public:
 	struct Material
@@ -342,7 +368,9 @@ public:
 		UINT cubemapSRVIndex_{ 0 };
 		UINT shadowmapSRVIndex_{ 0 };
 	};
-	PassData passData_;
+	static constexpr unsigned NumFrameResource = 3;
+	unsigned currentPassDataIndex_{ 0 };
+	PassData passData_[NumFrameResource];
 public:
 	struct Camera
 	{
@@ -387,4 +415,5 @@ public:
 
 	void ResetSwapChain();
 public:
+	void ExecuteCommandList(ID3D12CommandList* commandList, ID3D12Fence* fence, ID3D12CommandQueue* commandQueue) const;
 };
