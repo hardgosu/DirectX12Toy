@@ -30,11 +30,11 @@ private:
 	Adapter iDXGIAdapter_;
 	Device device_;
 
-	ComPtr<ID3D12CommandAllocator> commandAllocator_;
+	ComPtr<ID3D12CommandAllocator> mainCommandAllocator_;
 	CommandQueue commandQueue_;
 	ComPtr<ID3D12GraphicsCommandList> commandList_;
 	ComPtr<ID3D12Fence> fence_;
-	UINT64 fenceValue_{};
+	UINT64 mainFenceValue_{};
 	static constexpr UINT64 InitialFenceValue = 0;
 
 	struct DescriptorHandleAccesor
@@ -106,8 +106,8 @@ private:
 	float frameTimeCount_{};
 
 public:
-	void LoadTexture(/*...*/);
-	void LoadMesh(/*...*/);
+	void LoadTexture(ID3D12GraphicsCommandList* commandList, ID3D12CommandAllocator* allocator);
+	void LoadMesh(ID3D12GraphicsCommandList* commandList, ID3D12CommandAllocator* allocator);
 
 	struct Texture
 	{
@@ -243,7 +243,7 @@ public:
 			std::memcpy(cpuVertexBuffer_.get() + vbSize_, vertices.data(), byteSizeVB);
 			vbSize_ += byteSizeVB;
 
-			MeshDesc ret;
+			Mesh ret;
 			ret.startVertexLocation_ = totalVertexCount_;
 			ret.vertexByteSize_ = sizeof(Vertex);
 			ret.vertexBufferByteSize_ = byteSizeVB;
@@ -364,13 +364,20 @@ public:
 		std::unique_ptr<UploadBuffer<Material>> materialBuffer_;
 		std::unique_ptr<UploadBuffer<InstanceData>> instanceBuffer_;
 		std::unique_ptr<UploadBuffer<ConstantBuffer1>> constantBuffer_;
+
+		ComPtr<ID3D12CommandAllocator> commandAllocator_;
 		UINT64 fence_{};
+	};
+	struct CommonPassData
+	{
 		UINT cubemapSRVIndex_{ 0 };
 		UINT shadowmapSRVIndex_{ 0 };
 	};
+	CommonPassData commonPassData_;
+
 	static constexpr unsigned NumFrameResource = 3;
 	unsigned currentPassDataIndex_{ 0 };
-	PassData passData_[NumFrameResource];
+	std::array<PassData, NumFrameResource> passData_;
 public:
 	struct Camera
 	{
@@ -413,7 +420,12 @@ public:
 	UINT currentBackBufferIndex_{};
 	UINT backBufferFormat_{ DXGI_FORMAT_R8G8B8A8_UNORM };
 
-	void ResetSwapChain();
+	void ResetSwapChain(ID3D12GraphicsCommandList* commandList, ID3D12CommandAllocator* allocator);
+	ID3D12Resource* CurrentSwapChainBuffer() const;
 public:
-	void ExecuteCommandList(ID3D12CommandList* commandList, ID3D12Fence* fence, ID3D12CommandQueue* commandQueue) const;
+	void ExecuteCommandList(std::vector<ID3D12GraphicsCommandList*>& commandLists, ID3D12Fence* fence,
+		ID3D12CommandQueue* commandQueue, UINT64& fenceValue, bool sync = true) const;
+
+	void ExecuteCommandList(ID3D12GraphicsCommandList* commandList, ID3D12Fence* fence,
+		ID3D12CommandQueue* commandQueue, UINT64& fenceValue, bool sync = true) const;
 };
