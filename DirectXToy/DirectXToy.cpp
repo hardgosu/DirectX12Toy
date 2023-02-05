@@ -234,7 +234,6 @@ void DirectXToy::RenderScene()
 {
 	currentPassDataIndex_ = (currentPassDataIndex_ + 1) % NumFrameResource;
 	auto& currentPassData = passData_[currentPassDataIndex_];
-	auto test = fence_->GetCompletedValue();
 	if (currentPassData.fence_ > fence_->GetCompletedValue())
 	{
 		HANDLE eventHandle = CreateEventEx(nullptr, false, false, EVENT_ALL_ACCESS);
@@ -284,6 +283,24 @@ void DirectXToy::RenderScene()
 		{
 
 		},
+
+		[this, &currentPassData]() //Test
+		{
+			commandList_->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentSwapChainBuffer(),
+				D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
+			commandList_->RSSetViewports(1, &mainViewport_);
+			commandList_->RSSetScissorRects(1, &mainScissor_);
+			auto currentRenderTargetView = descriptorHandleAccesors_[descriptorHeapRTV_.Get()].GetCPUHandle(currentBackBufferIndex_);
+			auto depthStencilView = descriptorHandleAccesors_[descriptorHeapDSV_.Get()].GetCPUHandle(0);
+			commandList_->ClearRenderTargetView(currentRenderTargetView, Colors::LightPink, 0, nullptr);
+			commandList_->ClearDepthStencilView(depthStencilView, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
+			
+			//Do Draw Call
+
+			commandList_->OMSetRenderTargets(1, &currentRenderTargetView, true, &depthStencilView);
+			commandList_->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentSwapChainBuffer(),
+				D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
+		},
 	};
 	std::for_each(renderPasses.begin(), renderPasses.end(), [this](auto& elem) { elem(); });
 
@@ -295,8 +312,9 @@ void DirectXToy::RenderScene()
 		{
 			commandList_.Get(),
 		};
-		ExecuteCommandList(commandLists, fence_.Get(), commandQueue_.Get(), currentPassData.fence_, false);
-		//iDXGISwapChain_->Present(0, 0);
+		ExecuteCommandList(commandLists, fence_.Get(), commandQueue_.Get(), mainFenceValue_, false);
+		currentPassData.fence_ = mainFenceValue_;
+		iDXGISwapChain_->Present(0, 0);
 		currentBackBufferIndex_ = (currentBackBufferIndex_ + 1) % SwapChainCount;
 	};
 	endRenderPass();
@@ -693,6 +711,10 @@ void DirectXToy::ResetSwapChain(ID3D12GraphicsCommandList* commandList, ID3D12Co
 	device_->CreateDepthStencilView(depthStencilBuffer_.Get(), &depthSencilViewDesc,
 		descriptorHandleAccesors_[descriptorHeapDSV_.Get()].GetCPUHandle(0));
 
+	// 뎁스버퍼로 사용될려면 D3D12_RESOURCE_STATE_DEPTH_WRITE 상태로의 전이가 일어나야..
+	commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(depthStencilBuffer_.Get(),
+		D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_DEPTH_WRITE));
+
 	std::vector<ID3D12GraphicsCommandList*> commandLists
 	{
 		commandList,
@@ -700,6 +722,15 @@ void DirectXToy::ResetSwapChain(ID3D12GraphicsCommandList* commandList, ID3D12Co
 	ExecuteCommandList(commandLists, fence_.Get(), commandQueue_.Get(), mainFenceValue_, true);
 
 	//Update Viewport, Scissor rect
+
+	mainViewport_.TopLeftX = 0;
+	mainViewport_.TopLeftY = 0;
+	mainViewport_.Width = static_cast<float>(g_DisplayWidth);
+	mainViewport_.Height = static_cast<float>(g_DisplayHeight);
+	mainViewport_.MinDepth = 0.0f;
+	mainViewport_.MaxDepth = 1.0f;
+
+	mainScissor_ = { 0, 0, static_cast<long>(g_DisplayWidth), static_cast<long>(g_DisplayHeight) };
 }
 
 ID3D12Resource* DirectXToy::CurrentSwapChainBuffer() const

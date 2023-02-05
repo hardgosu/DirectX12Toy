@@ -24,8 +24,8 @@ private:
 	using Device = ComPtr<ID3D12Device>;
 	using CommandQueue = ComPtr<ID3D12CommandQueue>;
 
-	D3D12_VIEWPORT m_MainViewport;
-	D3D12_RECT m_MainScissor;
+	D3D12_VIEWPORT mainViewport_;
+	D3D12_RECT mainScissor_;
 	Factory iDXGIFactory_;
 	Adapter iDXGIAdapter_;
 	Device device_;
