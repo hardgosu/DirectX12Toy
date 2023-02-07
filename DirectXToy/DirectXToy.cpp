@@ -10,8 +10,10 @@ void DirectXToy::Startup()
 {
 	ComPtr<ID3D12Debug> debugController;
 	auto hrr = (D3D12GetDebugInterface(IID_PPV_ARGS(&debugController)));
-	debugController->EnableDebugLayer();
-
+	if (debugController != nullptr)
+	{
+		debugController->EnableDebugLayer();
+	}
 	auto createDeviceWithBestAdapter = [](Factory& factory, Device& outputDevice)
 	{
 		//enum adapters
@@ -555,7 +557,7 @@ void DirectXToy::LoadMesh(ID3D12GraphicsCommandList* commandList, ID3D12CommandA
 		return vertexBuffer.AddToVB(vertexContainer, indices);
 	};
 
-	auto& vertexBuffer1 = vertexBufferPool_["Main"];
+	auto& vertexBuffer1 = mainVertexBuffer_;
 
 	GeometryGenerator generator;
 	auto meshData = generator.CreateGeosphere(10.0f, 16);

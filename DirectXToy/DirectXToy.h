@@ -4,7 +4,9 @@
 class DirectXToy : public IGameApp
 {
 public:
-	DirectXToy(void) {}
+	DirectXToy(void) : mainVertexBuffer_{ vertexBufferPool_["Main"] }, subVertexBuffer_{ vertexBufferPool_["Sub"] }
+	{ 
+	}
 
 	virtual void Startup(void) override;
 	virtual void Cleanup(void) override;
@@ -274,6 +276,8 @@ public:
 		void Confirm(ID3D12Device* pDevice, ID3D12GraphicsCommandList* pCommandList, bool clearData = false);
 	};
 	std::map<std::string, VertexBuffer> vertexBufferPool_; //1~2개정도만 만들면 충분..
+	VertexBuffer& mainVertexBuffer_;
+	VertexBuffer& subVertexBuffer_;
 public:
 	void LoadRenderItem();
 
