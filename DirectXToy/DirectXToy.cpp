@@ -1,7 +1,7 @@
 #include "DirectXToy.h"
 #include "Independent/GeometryGenerator.h"
 #include <d3d12sdklayers.h>
-
+#define D3DCOMPILE_DEBUG 1
 extern HWND g_hWnd;
 extern uint32_t g_DisplayWidth;
 extern uint32_t g_DisplayHeight;
@@ -106,28 +106,13 @@ void DirectXToy::Startup()
 		DescriptorHandleAccesor(descriptorHeapCBVSRVUAV_.Get(), cbvHandleIncrementSize_)));
 
 	using RootParameter = CD3DX12_ROOT_PARAMETER; //signature 1.0
-	constexpr unsigned NumRootParameter = 10;
+	constexpr unsigned NumRootParameter = 0;
 	std::array<RootParameter, NumRootParameter> parameters;
-	//성능 팁 : 자주 쓰이는 순으로 파라미터 구성
-	parameters[0].InitAsConstantBufferView(0);
-	parameters[1].InitAsConstantBufferView(1);
-	parameters[2].InitAsConstantBufferView(2);
-	parameters[3].InitAsConstantBufferView(3);
-	parameters[4].InitAsShaderResourceView(0, 1);
-	parameters[5].InitAsShaderResourceView(1, 1);
 
-	CD3DX12_DESCRIPTOR_RANGE texTable1(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0);
-	CD3DX12_DESCRIPTOR_RANGE texTable2(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1, 0);
-	CD3DX12_DESCRIPTOR_RANGE texTable3(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 2, 0);
-	CD3DX12_DESCRIPTOR_RANGE texTable4(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 40, 3, 0);
-	parameters[6].InitAsDescriptorTable(1, &texTable1, D3D12_SHADER_VISIBILITY_PIXEL);
-	parameters[7].InitAsDescriptorTable(1, &texTable2, D3D12_SHADER_VISIBILITY_PIXEL);
-	parameters[8].InitAsDescriptorTable(1, &texTable3, D3D12_SHADER_VISIBILITY_PIXEL);
-	parameters[9].InitAsDescriptorTable(1, &texTable4, D3D12_SHADER_VISIBILITY_PIXEL);
 
 	auto staticSamplers = GetStaticSamplers();
 
-	CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc(NumRootParameter, parameters.data(), staticSamplers.size(), staticSamplers.data(),
+	CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc(NumRootParameter, nullptr, staticSamplers.size(), staticSamplers.data(),
 		D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 	ComPtr<ID3DBlob> pOutBlob, pErrorBlob;
 	ASSERT_SUCCEEDED(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION::D3D_ROOT_SIGNATURE_VERSION_1_0, &pOutBlob, &pErrorBlob));
@@ -266,18 +251,6 @@ void DirectXToy::RenderScene()
 			commandList_->SetDescriptorHeaps(descriptorHeaps.size(), descriptorHeaps.data());
 			commandList_->SetGraphicsRootSignature(rootSignature1_.Get());
 
-
-			commandList_->SetGraphicsRootConstantBufferView(0, currentPassData.constantBuffer_->Resource()->GetGPUVirtualAddress());
-			commandList_->SetGraphicsRootConstantBufferView(1, currentPassData.instanceBuffer_->Resource()->GetGPUVirtualAddress());
-			//commandList_->SetGraphicsRootConstantBufferView(2, )
-			//commandList_->SetGraphicsRootConstantBufferView(3, )
-			commandList_->SetGraphicsRootShaderResourceView(4, currentPassData.materialBuffer_->Resource()->GetGPUVirtualAddress());
-			//commandList_->SetGraphicsRootDescriptorTable(6)
-			//commandList_->SetGraphicsRootDescriptorTable(7)
-			commandList_->SetGraphicsRootDescriptorTable(8, 
-				descriptorHandleAccesors_[descriptorHeapCBVSRVUAV_.Get()].GetGPUHandle(commonPassData_.cubemapSRVIndex_));
-			commandList_->SetGraphicsRootDescriptorTable(9, 
-				descriptorHandleAccesors_[descriptorHeapCBVSRVUAV_.Get()].GetGPUHandle(0));
 			// 드로우 콜
 		},
 
@@ -296,10 +269,25 @@ void DirectXToy::RenderScene()
 			auto depthStencilView = descriptorHandleAccesors_[descriptorHeapDSV_.Get()].GetCPUHandle(0);
 			commandList_->ClearRenderTargetView(currentRenderTargetView, Colors::LightPink, 0, nullptr);
 			commandList_->ClearDepthStencilView(depthStencilView, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
-			
-			//Do Draw Call
-
 			commandList_->OMSetRenderTargets(1, &currentRenderTargetView, true, &depthStencilView);
+
+			//Do Draw Call
+			auto& mesh = renderItems_[0].desc_.mesh_;
+			auto vb = mesh->GetVertexBufferView();
+			auto ib = mesh->GetIndexBufferView();
+			commandList_->SetPipelineState(renderItems_[0].desc_.pso_);
+
+			commandList_->IASetVertexBuffers(0, 1, &vb);
+			commandList_->IASetPrimitiveTopology(D3D12_PRIMITIVE_TOPOLOGY::D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+			if (ib.has_value())
+			{
+				commandList_->IASetIndexBuffer(&ib.value());
+				commandList_->DrawIndexedInstanced(mesh->ibDesc_->indexCount_, mesh->ibDesc_->indexCount_, 1, mesh->startVertexLocation_, 1);
+			}
+			else
+			{
+				commandList_->DrawInstanced(mesh->vertexCount_, 1, mesh->startVertexLocation_, 0);
+			}
 			commandList_->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentSwapChainBuffer(),
 				D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
 		},
