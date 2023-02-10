@@ -1,7 +1,6 @@
 #include "DirectXToy.h"
 #include "Independent/GeometryGenerator.h"
-#include <d3d12sdklayers.h>
-#define D3DCOMPILE_DEBUG 1
+
 extern HWND g_hWnd;
 extern uint32_t g_DisplayWidth;
 extern uint32_t g_DisplayHeight;
@@ -122,10 +121,10 @@ void DirectXToy::Startup()
 	{
 		std::vector<D3D12_INPUT_ELEMENT_DESC> staticMesh
 		{
-			{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-			{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-			{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-			{ "TANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+			{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+			{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+			{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+			{ "TANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 32, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
 		};
 		outputMap[InputElement::StaticMesh] = std::move(staticMesh);
 	};
@@ -244,12 +243,6 @@ void DirectXToy::RenderScene()
 	{
 		[this, &currentPassData]() //Sample pass
 		{
-			std::vector <ID3D12DescriptorHeap*> descriptorHeaps
-			{
-				descriptorHeapCBVSRVUAV_.Get(),
-			};
-			commandList_->SetDescriptorHeaps(descriptorHeaps.size(), descriptorHeaps.data());
-			commandList_->SetGraphicsRootSignature(rootSignature1_.Get());
 
 			// 드로우 콜
 		},
@@ -272,6 +265,13 @@ void DirectXToy::RenderScene()
 			commandList_->OMSetRenderTargets(1, &currentRenderTargetView, true, &depthStencilView);
 
 			//Do Draw Call
+			std::vector <ID3D12DescriptorHeap*> descriptorHeaps
+			{
+				descriptorHeapCBVSRVUAV_.Get(),
+			};
+			commandList_->SetDescriptorHeaps(descriptorHeaps.size(), descriptorHeaps.data());
+			commandList_->SetGraphicsRootSignature(rootSignature1_.Get());
+
 			auto& mesh = renderItems_[0].desc_.mesh_;
 			auto vb = mesh->GetVertexBufferView();
 			auto ib = mesh->GetIndexBufferView();
@@ -279,15 +279,16 @@ void DirectXToy::RenderScene()
 
 			commandList_->IASetVertexBuffers(0, 1, &vb);
 			commandList_->IASetPrimitiveTopology(D3D12_PRIMITIVE_TOPOLOGY::D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
 			if (ib.has_value())
 			{
-				commandList_->IASetIndexBuffer(&ib.value());
-				commandList_->DrawIndexedInstanced(mesh->ibDesc_->indexCount_, mesh->ibDesc_->indexCount_, 1, mesh->startVertexLocation_, 1);
+				//commandList_->IASetIndexBuffer(&ib.value());
+				//commandList_->DrawIndexedInstanced(mesh->ibDesc_->indexCount_, mesh->ibDesc_->indexCount_, 0, mesh->startVertexLocation_, 0);
 			}
-			else
-			{
-				commandList_->DrawInstanced(mesh->vertexCount_, 1, mesh->startVertexLocation_, 0);
-			}
+
+			commandList_->DrawInstanced(3, 1, 0, 0);
+			
+			
 			commandList_->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentSwapChainBuffer(),
 				D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
 		},
@@ -302,10 +303,13 @@ void DirectXToy::RenderScene()
 		{
 			commandList_.Get(),
 		};
-		ExecuteCommandList(commandLists, fence_.Get(), commandQueue_.Get(), mainFenceValue_, false);
-		currentPassData.fence_ = mainFenceValue_;
-		iDXGISwapChain_->Present(0, 0);
-		currentBackBufferIndex_ = (currentBackBufferIndex_ + 1) % SwapChainCount;
+		auto afterExecution = [this, &currentPassData]()
+		{
+			currentPassData.fence_ = mainFenceValue_;
+			iDXGISwapChain_->Present(0, 0);
+			currentBackBufferIndex_ = (currentBackBufferIndex_ + 1) % SwapChainCount;
+		};
+		ExecuteCommandList(commandLists, fence_.Get(), commandQueue_.Get(), mainFenceValue_, false, afterExecution);
 	};
 	endRenderPass();
 }
@@ -560,7 +564,7 @@ void DirectXToy::LoadMesh(ID3D12GraphicsCommandList* commandList, ID3D12CommandA
 	MeshDataList meshDataList
 	{
 		{"GeoSphere", &meshData },
-		{"Box", &meshData2 },
+		{"Box", &meshData },
 	};
 
 	for (const auto& [meshName, pMeshData] : meshDataList)
@@ -573,14 +577,19 @@ void DirectXToy::LoadMesh(ID3D12GraphicsCommandList* commandList, ID3D12CommandA
 }
 //TODO : Signature 추가 및 개선
 void DirectXToy::ExecuteCommandList(std::vector<ID3D12GraphicsCommandList*>& commandLists, ID3D12Fence* fence,
-	ID3D12CommandQueue* commandQueue, UINT64& fenceValue, bool sync/*true*/) const
+	ID3D12CommandQueue* commandQueue, UINT64& fenceValue, bool sync/*true*/, std::function<void()>&& afterExecution) const
 {
 	std::for_each(commandLists.begin(), commandLists.end(), [](auto& elem)
 		{
 			elem->Close();
 		});
 	commandQueue->ExecuteCommandLists(commandLists.size(), reinterpret_cast<ID3D12CommandList* const*>(commandLists.data()));
-	ASSERT_SUCCEEDED(commandQueue->Signal(fence, ++fenceValue));
+	++fenceValue;
+	if (afterExecution != nullptr)
+	{
+		afterExecution();
+	}
+	ASSERT_SUCCEEDED(commandQueue->Signal(fence, fenceValue));
 	if (sync && fence->GetCompletedValue() < fenceValue)
 	{
 		HANDLE eventHandle = CreateEventEx(nullptr, false, false, EVENT_ALL_ACCESS);
@@ -591,7 +600,7 @@ void DirectXToy::ExecuteCommandList(std::vector<ID3D12GraphicsCommandList*>& com
 }
 
 void DirectXToy::ExecuteCommandList(ID3D12GraphicsCommandList* commandList, ID3D12Fence* fence,
-	ID3D12CommandQueue* commandQueue, UINT64& fenceValue, bool sync/*true*/) const
+	ID3D12CommandQueue* commandQueue, UINT64& fenceValue, bool sync/*true*/, std::function<void()>&& afterExecution) const
 {
 	commandList->Close();
 
@@ -601,6 +610,10 @@ void DirectXToy::ExecuteCommandList(ID3D12GraphicsCommandList* commandList, ID3D
 	};
 
 	commandQueue->ExecuteCommandLists(commandLists.size(), reinterpret_cast<ID3D12CommandList* const*>(commandLists.data()));
+	if (afterExecution != nullptr) //ChatGPT가 empty() 함수가 있다는데..
+	{
+		afterExecution();
+	}
 	ASSERT_SUCCEEDED(commandQueue->Signal(fence, ++fenceValue));
 	if (sync && fence->GetCompletedValue() < fenceValue)
 	{
@@ -733,8 +746,8 @@ void DirectXToy::VertexBuffer::Confirm(ID3D12Device* pDevice, ID3D12GraphicsComm
 	defaultVertexBuffer_ = CreateDefaultBuffer(pDevice, pCommandList, cpuVertexBuffer_.get(), vbSize_, uploadVertexBuffer_, clearData);
 	ASSERT(defaultVertexBuffer_ != nullptr);
 
-	defaultIndexBuffer_ = CreateDefaultBuffer(pDevice, pCommandList, cpuIndexBuffer_.get(), ibSize_, uploadIndexBuffer_, clearData);
-	ASSERT(defaultIndexBuffer_ != nullptr);
+	//defaultIndexBuffer_ = CreateDefaultBuffer(pDevice, pCommandList, cpuIndexBuffer_.get(), ibSize_, uploadIndexBuffer_, clearData);
+	//ASSERT(defaultIndexBuffer_ != nullptr);
 }
 
 CD3DX12_CPU_DESCRIPTOR_HANDLE DirectXToy::DescriptorHandleAccesor::GetCPUHandle(int index) const
