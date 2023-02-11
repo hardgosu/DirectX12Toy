@@ -105,13 +105,27 @@ void DirectXToy::Startup()
 		DescriptorHandleAccesor(descriptorHeapCBVSRVUAV_.Get(), cbvHandleIncrementSize_)));
 
 	using RootParameter = CD3DX12_ROOT_PARAMETER; //signature 1.0
-	constexpr unsigned NumRootParameter = 0;
+	constexpr unsigned NumRootParameter = 10;
 	std::array<RootParameter, NumRootParameter> parameters;
+	parameters[0].InitAsConstantBufferView(0);
+	parameters[1].InitAsConstantBufferView(1);
+	parameters[2].InitAsConstantBufferView(2);
+	parameters[3].InitAsConstantBufferView(3);
+	parameters[4].InitAsShaderResourceView(0, 1);
+	parameters[5].InitAsShaderResourceView(1, 1);
 
+	CD3DX12_DESCRIPTOR_RANGE texTable1(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0);
+	CD3DX12_DESCRIPTOR_RANGE texTable2(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1, 0);
+	CD3DX12_DESCRIPTOR_RANGE texTable3(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 2, 0);
+	CD3DX12_DESCRIPTOR_RANGE texTable4(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 40, 3, 0);
+	parameters[6].InitAsDescriptorTable(1, &texTable1, D3D12_SHADER_VISIBILITY_PIXEL);
+	parameters[7].InitAsDescriptorTable(1, &texTable2, D3D12_SHADER_VISIBILITY_PIXEL);
+	parameters[8].InitAsDescriptorTable(1, &texTable3, D3D12_SHADER_VISIBILITY_PIXEL);
+	parameters[9].InitAsDescriptorTable(1, &texTable4, D3D12_SHADER_VISIBILITY_PIXEL);
 
 	auto staticSamplers = GetStaticSamplers();
-
-	CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc(NumRootParameter, nullptr, staticSamplers.size(), staticSamplers.data(),
+	
+	CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc(NumRootParameter, parameters.data(), staticSamplers.size(), staticSamplers.data(),
 		D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 	ComPtr<ID3DBlob> pOutBlob, pErrorBlob;
 	ASSERT_SUCCEEDED(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION::D3D_ROOT_SIGNATURE_VERSION_1_0, &pOutBlob, &pErrorBlob));
@@ -131,8 +145,11 @@ void DirectXToy::Startup()
 
 	auto buildShader = [](ShaderMap& outputMap)
 	{
-		outputMap[Shader::StaticMeshVS] = CompileShader(L"Shaders/SamplePath.hlsl", nullptr, "VSMain", "vs_5_1");
-		outputMap[Shader::StaticMeshPS] = CompileShader(L"Shaders/SamplePath.hlsl", nullptr, "PSMain", "ps_5_1");
+		outputMap[Shader::StaticMeshVS] = CompileShader(L"Shaders/SamplePath.hlsl", nullptr, VS_MAIN, "vs_5_1");
+		outputMap[Shader::StaticMeshPS] = CompileShader(L"Shaders/SamplePath.hlsl", nullptr, PS_MAIN, "ps_5_1");
+		
+		outputMap[Shader::TestVS] = CompileShader(L"Shaders/Test.hlsl", nullptr, VS_MAIN, "vs_5_1");
+		outputMap[Shader::TestPS] = CompileShader(L"Shaders/Test.hlsl", nullptr, PS_MAIN, "ps_5_1");
 	};
 
 	using RootSignature = ComPtr<ID3D12RootSignature>;
@@ -158,11 +175,15 @@ void DirectXToy::Startup()
 			static_cast<UINT>(inputElementsMap[InputElement::StaticMesh].size()) };
 
 		outputMap[PSO::StaticMesh] = staticMesh;
+		outputMap[PSO::Test] = staticMesh;
 	};
 
 	auto buildPSO = [](GraphicsPSOMap& outputMap, const GraphicsPSODescMap& psoDescMap, Device& device)
 	{
 		HRESULT hr = device->CreateGraphicsPipelineState(&psoDescMap.find(PSO::StaticMesh)->second, IID_PPV_ARGS(&outputMap[PSO::StaticMesh]));
+		ASSERT_SUCCEEDED(hr);
+
+		hr = device->CreateGraphicsPipelineState(&psoDescMap.find(PSO::Test)->second, IID_PPV_ARGS(&outputMap[PSO::Test]));
 		ASSERT_SUCCEEDED(hr);
 	};
 
@@ -213,20 +234,33 @@ void DirectXToy::Update(float deltaT)
 	//ProcessInput(Interrupt)
 	//Logic
 	//Render
+
+	auto logic = [this]()
+	{
+		currentPassDataIndex_ = (currentPassDataIndex_ + 1) % NumFrameResource;
+		auto& currentPassData = passData_[currentPassDataIndex_];
+		if (currentPassData.fence_ > fence_->GetCompletedValue())
+		{
+			HANDLE eventHandle = CreateEventEx(nullptr, false, false, EVENT_ALL_ACCESS);
+			ASSERT_SUCCEEDED(fence_->SetEventOnCompletion(currentPassData.fence_, eventHandle));
+			WaitForSingleObject(eventHandle, INFINITE);
+			CloseHandle(eventHandle);
+		}
+
+		ConstantBuffer1 constantBuffer1;
+
+		constantBuffer1.eyePosW_ = camera_.GetPosition();
+		constantBuffer1.deltaTime_ = elapsedTime_;
+		currentPassData.constantBuffer_->CopyData(0, constantBuffer1);
+	};
+
+	logic();
 	RenderScene();
 }
 
 void DirectXToy::RenderScene()
 {
-	currentPassDataIndex_ = (currentPassDataIndex_ + 1) % NumFrameResource;
 	auto& currentPassData = passData_[currentPassDataIndex_];
-	if (currentPassData.fence_ > fence_->GetCompletedValue())
-	{
-		HANDLE eventHandle = CreateEventEx(nullptr, false, false, EVENT_ALL_ACCESS);
-		ASSERT_SUCCEEDED(fence_->SetEventOnCompletion(currentPassData.fence_, eventHandle));
-		WaitForSingleObject(eventHandle, INFINITE);
-		CloseHandle(eventHandle);
-	}
 
 	auto beginRenderPass = [this, &currentPassData]()
 	{
@@ -271,6 +305,19 @@ void DirectXToy::RenderScene()
 			};
 			commandList_->SetDescriptorHeaps(descriptorHeaps.size(), descriptorHeaps.data());
 			commandList_->SetGraphicsRootSignature(rootSignature1_.Get());
+			
+			commandList_->SetGraphicsRootConstantBufferView(0, currentPassData.constantBuffer_->Resource()->GetGPUVirtualAddress());
+			//commandList_->SetGraphicsRootConstantBufferView(1,
+			//commandList_->SetGraphicsRootConstantBufferView(2, )
+			//commandList_->SetGraphicsRootConstantBufferView(3, )
+			commandList_->SetGraphicsRootShaderResourceView(4, currentPassData.materialBuffer_->Resource()->GetGPUVirtualAddress());
+			commandList_->SetGraphicsRootShaderResourceView(5, currentPassData.instanceBuffer_->Resource()->GetGPUVirtualAddress());
+			//commandList_->SetGraphicsRootDescriptorTable(7)
+			//commandList_->SetGraphicsRootDescriptorTable(8,
+			//	descriptorHandleAccesors_[descriptorHeapCBVSRVUAV_.Get()].GetGPUHandle(commonPassData_.cubemapSRVIndex_));
+			//commandList_->SetGraphicsRootDescriptorTable(9,
+			//	descriptorHandleAccesors_[descriptorHeapCBVSRVUAV_.Get()].GetGPUHandle(0));
+
 
 			auto& mesh = renderItems_[0].desc_.mesh_;
 			auto vb = mesh->GetVertexBufferView();
@@ -833,6 +880,11 @@ void DirectXToy::Camera::Rotate(Axis axis, float angle)
 		case Axis::Z:
 		{
 			rotationMatrix = XMMatrixRotationZ(angle);
+		}
+		break;
+		default:
+		{
+			ASSERT(false);
 		}
 		break;
 	}

@@ -1,6 +1,12 @@
 #pragma once
 #include "CompleteHeader.h"
 
+static constexpr char VS_MAIN[] = "VSMain";
+static constexpr char PS_MAIN[] = "PSMain";
+static constexpr char GS_MAIN[] = "GSMain";
+static constexpr char HS_MAIN[] = "HSMain";
+static constexpr char DS_MAIN[] = "DSMain";
+
 class DirectXToy : public IGameApp
 {
 public:
@@ -68,6 +74,8 @@ private:
 		SkinnedMesh,
 		StaticMeshShadow,
 		SkinnedMeshShadow,
+
+		Test,
 	};
 
 	using GraphicsPSOMap = std::map<PSO, ComPtr<ID3D12PipelineState>>;
@@ -326,15 +334,15 @@ public:
 
 	struct ConstantBuffer1
 	{
-		XMFLOAT4X4 viewMatrix_;
-		XMFLOAT4X4 projectionMatrix_;
-		XMFLOAT4X4 shadowMatrix_;
-		XMFLOAT4X4 textureMatrix_;
+		XMFLOAT4X4 viewMatrix_ = MathHelper::Identity4x4();
+		XMFLOAT4X4 projectionMatrix_ = MathHelper::Identity4x4();
+		XMFLOAT4X4 shadowMatrix_ = MathHelper::Identity4x4();
+		XMFLOAT4X4 textureMatrix_ = MathHelper::Identity4x4();
 		XMFLOAT3 eyePosW_{ 0.0f, 0.0f, 0.0f };
-		float pad_;
-		float totalTime_;
-		float deltaTime_;
-		XMFLOAT2 pad2_;
+		float pad_{};
+		float totalTime_{};
+		float deltaTime_{};
+		XMFLOAT2 pad2_{};
 		Light lights_[MaxLights];
 		XMFLOAT4 ambientLight_{ 0.0f, 0.0f, 0.0f, 1.0f };
 		XMFLOAT2 renderTargetSize_{ 0.0f, 0.0f };
@@ -395,6 +403,7 @@ public:
 
 		void Rotate(Axis axis, float angle);
 		void SetPosition(const XMFLOAT3& position);
+		XMFLOAT3& GetPosition() { return position_; }
 		const XMFLOAT4X4& GetViewMatrix();
 		const XMFLOAT4X4& GetProjMatrix();
 		void SetProjMatrix(float fovY = MathHelper::Pi * 0.25f, float aspect = 1.0f, float nearZ = 1.0f, float farZ = 1000.0f);
