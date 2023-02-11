@@ -1,6 +1,5 @@
 #include "DirectXToy.h"
 #include "Independent/GeometryGenerator.h"
-#include <d3d12sdklayers.h>
 
 extern HWND g_hWnd;
 extern uint32_t g_DisplayWidth;
@@ -108,7 +107,6 @@ void DirectXToy::Startup()
 	using RootParameter = CD3DX12_ROOT_PARAMETER; //signature 1.0
 	constexpr unsigned NumRootParameter = 10;
 	std::array<RootParameter, NumRootParameter> parameters;
-	//성능 팁 : 자주 쓰이는 순으로 파라미터 구성
 	parameters[0].InitAsConstantBufferView(0);
 	parameters[1].InitAsConstantBufferView(1);
 	parameters[2].InitAsConstantBufferView(2);
@@ -126,7 +124,7 @@ void DirectXToy::Startup()
 	parameters[9].InitAsDescriptorTable(1, &texTable4, D3D12_SHADER_VISIBILITY_PIXEL);
 
 	auto staticSamplers = GetStaticSamplers();
-
+	
 	CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc(NumRootParameter, parameters.data(), staticSamplers.size(), staticSamplers.data(),
 		D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 	ComPtr<ID3DBlob> pOutBlob, pErrorBlob;
@@ -147,8 +145,11 @@ void DirectXToy::Startup()
 
 	auto buildShader = [](ShaderMap& outputMap)
 	{
-		outputMap[Shader::StaticMeshVS] = CompileShader(L"Shaders/SamplePath.hlsl", nullptr, "VSMain", "vs_5_1");
-		outputMap[Shader::StaticMeshPS] = CompileShader(L"Shaders/SamplePath.hlsl", nullptr, "PSMain", "ps_5_1");
+		outputMap[Shader::StaticMeshVS] = CompileShader(L"Shaders/SamplePath.hlsl", nullptr, VS_MAIN, "vs_5_1");
+		outputMap[Shader::StaticMeshPS] = CompileShader(L"Shaders/SamplePath.hlsl", nullptr, PS_MAIN, "ps_5_1");
+		
+		outputMap[Shader::TestVS] = CompileShader(L"Shaders/Test.hlsl", nullptr, VS_MAIN, "vs_5_1");
+		outputMap[Shader::TestPS] = CompileShader(L"Shaders/Test.hlsl", nullptr, PS_MAIN, "ps_5_1");
 	};
 
 	using RootSignature = ComPtr<ID3D12RootSignature>;
@@ -174,11 +175,15 @@ void DirectXToy::Startup()
 			static_cast<UINT>(inputElementsMap[InputElement::StaticMesh].size()) };
 
 		outputMap[PSO::StaticMesh] = staticMesh;
+		outputMap[PSO::Test] = staticMesh;
 	};
 
 	auto buildPSO = [](GraphicsPSOMap& outputMap, const GraphicsPSODescMap& psoDescMap, Device& device)
 	{
 		HRESULT hr = device->CreateGraphicsPipelineState(&psoDescMap.find(PSO::StaticMesh)->second, IID_PPV_ARGS(&outputMap[PSO::StaticMesh]));
+		ASSERT_SUCCEEDED(hr);
+
+		hr = device->CreateGraphicsPipelineState(&psoDescMap.find(PSO::Test)->second, IID_PPV_ARGS(&outputMap[PSO::Test]));
 		ASSERT_SUCCEEDED(hr);
 	};
 
@@ -229,20 +234,33 @@ void DirectXToy::Update(float deltaT)
 	//ProcessInput(Interrupt)
 	//Logic
 	//Render
+
+	auto logic = [this]()
+	{
+		currentPassDataIndex_ = (currentPassDataIndex_ + 1) % NumFrameResource;
+		auto& currentPassData = passData_[currentPassDataIndex_];
+		if (currentPassData.fence_ > fence_->GetCompletedValue())
+		{
+			HANDLE eventHandle = CreateEventEx(nullptr, false, false, EVENT_ALL_ACCESS);
+			ASSERT_SUCCEEDED(fence_->SetEventOnCompletion(currentPassData.fence_, eventHandle));
+			WaitForSingleObject(eventHandle, INFINITE);
+			CloseHandle(eventHandle);
+		}
+
+		ConstantBuffer1 constantBuffer1;
+
+		constantBuffer1.eyePosW_ = camera_.GetPosition();
+		constantBuffer1.deltaTime_ = elapsedTime_;
+		currentPassData.constantBuffer_->CopyData(0, constantBuffer1);
+	};
+
+	logic();
 	RenderScene();
 }
 
 void DirectXToy::RenderScene()
 {
-	currentPassDataIndex_ = (currentPassDataIndex_ + 1) % NumFrameResource;
 	auto& currentPassData = passData_[currentPassDataIndex_];
-	if (currentPassData.fence_ > fence_->GetCompletedValue())
-	{
-		HANDLE eventHandle = CreateEventEx(nullptr, false, false, EVENT_ALL_ACCESS);
-		ASSERT_SUCCEEDED(fence_->SetEventOnCompletion(currentPassData.fence_, eventHandle));
-		WaitForSingleObject(eventHandle, INFINITE);
-		CloseHandle(eventHandle);
-	}
 
 	auto beginRenderPass = [this, &currentPassData]()
 	{
@@ -259,25 +277,7 @@ void DirectXToy::RenderScene()
 	{
 		[this, &currentPassData]() //Sample pass
 		{
-			std::vector <ID3D12DescriptorHeap*> descriptorHeaps
-			{
-				descriptorHeapCBVSRVUAV_.Get(),
-			};
-			commandList_->SetDescriptorHeaps(descriptorHeaps.size(), descriptorHeaps.data());
-			commandList_->SetGraphicsRootSignature(rootSignature1_.Get());
 
-
-			commandList_->SetGraphicsRootConstantBufferView(0, currentPassData.constantBuffer_->Resource()->GetGPUVirtualAddress());
-			commandList_->SetGraphicsRootConstantBufferView(1, currentPassData.instanceBuffer_->Resource()->GetGPUVirtualAddress());
-			//commandList_->SetGraphicsRootConstantBufferView(2, )
-			//commandList_->SetGraphicsRootConstantBufferView(3, )
-			commandList_->SetGraphicsRootShaderResourceView(4, currentPassData.materialBuffer_->Resource()->GetGPUVirtualAddress());
-			//commandList_->SetGraphicsRootDescriptorTable(6)
-			//commandList_->SetGraphicsRootDescriptorTable(7)
-			commandList_->SetGraphicsRootDescriptorTable(8, 
-				descriptorHandleAccesors_[descriptorHeapCBVSRVUAV_.Get()].GetGPUHandle(commonPassData_.cubemapSRVIndex_));
-			commandList_->SetGraphicsRootDescriptorTable(9, 
-				descriptorHandleAccesors_[descriptorHeapCBVSRVUAV_.Get()].GetGPUHandle(0));
 			// 드로우 콜
 		},
 
@@ -296,10 +296,47 @@ void DirectXToy::RenderScene()
 			auto depthStencilView = descriptorHandleAccesors_[descriptorHeapDSV_.Get()].GetCPUHandle(0);
 			commandList_->ClearRenderTargetView(currentRenderTargetView, Colors::LightPink, 0, nullptr);
 			commandList_->ClearDepthStencilView(depthStencilView, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
-			
-			//Do Draw Call
-
 			commandList_->OMSetRenderTargets(1, &currentRenderTargetView, true, &depthStencilView);
+
+			//Do Draw Call
+			std::vector <ID3D12DescriptorHeap*> descriptorHeaps
+			{
+				descriptorHeapCBVSRVUAV_.Get(),
+			};
+			commandList_->SetDescriptorHeaps(descriptorHeaps.size(), descriptorHeaps.data());
+			commandList_->SetGraphicsRootSignature(rootSignature1_.Get());
+			
+			commandList_->SetGraphicsRootConstantBufferView(0, currentPassData.constantBuffer_->Resource()->GetGPUVirtualAddress());
+			//commandList_->SetGraphicsRootConstantBufferView(1,
+			//commandList_->SetGraphicsRootConstantBufferView(2, )
+			//commandList_->SetGraphicsRootConstantBufferView(3, )
+			commandList_->SetGraphicsRootShaderResourceView(4, currentPassData.materialBuffer_->Resource()->GetGPUVirtualAddress());
+			commandList_->SetGraphicsRootShaderResourceView(5, currentPassData.instanceBuffer_->Resource()->GetGPUVirtualAddress());
+			//commandList_->SetGraphicsRootDescriptorTable(6)
+			//commandList_->SetGraphicsRootDescriptorTable(7)
+			commandList_->SetGraphicsRootDescriptorTable(8,
+				descriptorHandleAccesors_[descriptorHeapCBVSRVUAV_.Get()].GetGPUHandle(commonPassData_.cubemapSRVIndex_));
+			commandList_->SetGraphicsRootDescriptorTable(9,
+				descriptorHandleAccesors_[descriptorHeapCBVSRVUAV_.Get()].GetGPUHandle(0));
+
+
+			auto& mesh = renderItems_[0].desc_.mesh_;
+			auto vb = mesh->GetVertexBufferView();
+			auto ib = mesh->GetIndexBufferView();
+			commandList_->SetPipelineState(renderItems_[0].desc_.pso_);
+
+			commandList_->IASetVertexBuffers(0, 1, &vb);
+			commandList_->IASetPrimitiveTopology(D3D12_PRIMITIVE_TOPOLOGY::D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+			if (ib.has_value())
+			{
+				//commandList_->IASetIndexBuffer(&ib.value());
+				//commandList_->DrawIndexedInstanced(mesh->ibDesc_->indexCount_, mesh->ibDesc_->indexCount_, 0, mesh->startVertexLocation_, 0);
+			}
+
+			commandList_->DrawInstanced(3, 1, 0, 0);
+			
+			
 			commandList_->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentSwapChainBuffer(),
 				D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
 		},
@@ -314,10 +351,13 @@ void DirectXToy::RenderScene()
 		{
 			commandList_.Get(),
 		};
-		ExecuteCommandList(commandLists, fence_.Get(), commandQueue_.Get(), mainFenceValue_, false);
-		currentPassData.fence_ = mainFenceValue_;
-		iDXGISwapChain_->Present(0, 0);
-		currentBackBufferIndex_ = (currentBackBufferIndex_ + 1) % SwapChainCount;
+		auto afterExecution = [this, &currentPassData]()
+		{
+			currentPassData.fence_ = mainFenceValue_;
+			iDXGISwapChain_->Present(0, 0);
+			currentBackBufferIndex_ = (currentBackBufferIndex_ + 1) % SwapChainCount;
+		};
+		ExecuteCommandList(commandLists, fence_.Get(), commandQueue_.Get(), mainFenceValue_, false, afterExecution);
 	};
 	endRenderPass();
 }
@@ -572,7 +612,7 @@ void DirectXToy::LoadMesh(ID3D12GraphicsCommandList* commandList, ID3D12CommandA
 	MeshDataList meshDataList
 	{
 		{"GeoSphere", &meshData },
-		{"Box", &meshData2 },
+		{"Box", &meshData },
 	};
 
 	for (const auto& [meshName, pMeshData] : meshDataList)
@@ -585,14 +625,19 @@ void DirectXToy::LoadMesh(ID3D12GraphicsCommandList* commandList, ID3D12CommandA
 }
 //TODO : Signature 추가 및 개선
 void DirectXToy::ExecuteCommandList(std::vector<ID3D12GraphicsCommandList*>& commandLists, ID3D12Fence* fence,
-	ID3D12CommandQueue* commandQueue, UINT64& fenceValue, bool sync/*true*/) const
+	ID3D12CommandQueue* commandQueue, UINT64& fenceValue, bool sync/*true*/, std::function<void()>&& afterExecution) const
 {
 	std::for_each(commandLists.begin(), commandLists.end(), [](auto& elem)
 		{
 			elem->Close();
 		});
 	commandQueue->ExecuteCommandLists(commandLists.size(), reinterpret_cast<ID3D12CommandList* const*>(commandLists.data()));
-	ASSERT_SUCCEEDED(commandQueue->Signal(fence, ++fenceValue));
+	++fenceValue;
+	if (afterExecution != nullptr)
+	{
+		afterExecution();
+	}
+	ASSERT_SUCCEEDED(commandQueue->Signal(fence, fenceValue));
 	if (sync && fence->GetCompletedValue() < fenceValue)
 	{
 		HANDLE eventHandle = CreateEventEx(nullptr, false, false, EVENT_ALL_ACCESS);
@@ -603,7 +648,7 @@ void DirectXToy::ExecuteCommandList(std::vector<ID3D12GraphicsCommandList*>& com
 }
 
 void DirectXToy::ExecuteCommandList(ID3D12GraphicsCommandList* commandList, ID3D12Fence* fence,
-	ID3D12CommandQueue* commandQueue, UINT64& fenceValue, bool sync/*true*/) const
+	ID3D12CommandQueue* commandQueue, UINT64& fenceValue, bool sync/*true*/, std::function<void()>&& afterExecution) const
 {
 	commandList->Close();
 
@@ -613,6 +658,10 @@ void DirectXToy::ExecuteCommandList(ID3D12GraphicsCommandList* commandList, ID3D
 	};
 
 	commandQueue->ExecuteCommandLists(commandLists.size(), reinterpret_cast<ID3D12CommandList* const*>(commandLists.data()));
+	if (afterExecution != nullptr) //ChatGPT가 empty() 함수가 있다는데..
+	{
+		afterExecution();
+	}
 	ASSERT_SUCCEEDED(commandQueue->Signal(fence, ++fenceValue));
 	if (sync && fence->GetCompletedValue() < fenceValue)
 	{
@@ -745,8 +794,8 @@ void DirectXToy::VertexBuffer::Confirm(ID3D12Device* pDevice, ID3D12GraphicsComm
 	defaultVertexBuffer_ = CreateDefaultBuffer(pDevice, pCommandList, cpuVertexBuffer_.get(), vbSize_, uploadVertexBuffer_, clearData);
 	ASSERT(defaultVertexBuffer_ != nullptr);
 
-	defaultIndexBuffer_ = CreateDefaultBuffer(pDevice, pCommandList, cpuIndexBuffer_.get(), ibSize_, uploadIndexBuffer_, clearData);
-	ASSERT(defaultIndexBuffer_ != nullptr);
+	//defaultIndexBuffer_ = CreateDefaultBuffer(pDevice, pCommandList, cpuIndexBuffer_.get(), ibSize_, uploadIndexBuffer_, clearData);
+	//ASSERT(defaultIndexBuffer_ != nullptr);
 }
 
 CD3DX12_CPU_DESCRIPTOR_HANDLE DirectXToy::DescriptorHandleAccesor::GetCPUHandle(int index) const
@@ -832,6 +881,11 @@ void DirectXToy::Camera::Rotate(Axis axis, float angle)
 		case Axis::Z:
 		{
 			rotationMatrix = XMMatrixRotationZ(angle);
+		}
+		break;
+		default:
+		{
+			ASSERT(false);
 		}
 		break;
 	}

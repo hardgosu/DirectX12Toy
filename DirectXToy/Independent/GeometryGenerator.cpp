@@ -307,6 +307,13 @@ GeometryGenerator::Vertex GeometryGenerator::MidPoint(const Vertex& v0, const Ve
 GeometryGenerator::MeshData GeometryGenerator::CreateGeosphere(float radius, uint32 numSubdivisions)
 {
 	MeshData meshData;
+	meshData.Vertices.resize(3);
+	// Define the geometry for a triangle.
+	meshData.Vertices[0].Position = XMFLOAT3{ 0.0f, 0.25f * 1.33f, 0.0f};
+	meshData.Vertices[1].Position = XMFLOAT3{ 1.0f, 0.0f, 0.0f };
+	meshData.Vertices[2].Position = XMFLOAT3();
+
+	return meshData;
 
 	// Put a cap on the number of subdivisions.
 	numSubdivisions = std::min<uint32>(numSubdivisions, 6u);

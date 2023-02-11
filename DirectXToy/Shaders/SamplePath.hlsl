@@ -46,6 +46,7 @@ VSOut VSMain(VSInput vin, uint instanceID : SV_InstanceID)
     // Generate projective tex-coords to project shadow map onto scene.
     vout.ShadowPosH = mul(posW, gShadowMatrix);
     vout.instanceID = instanceID;
+
 	return vout;
 }
 
