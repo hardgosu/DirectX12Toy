@@ -312,11 +312,12 @@ void DirectXToy::RenderScene()
 			//commandList_->SetGraphicsRootConstantBufferView(3, )
 			commandList_->SetGraphicsRootShaderResourceView(4, currentPassData.materialBuffer_->Resource()->GetGPUVirtualAddress());
 			commandList_->SetGraphicsRootShaderResourceView(5, currentPassData.instanceBuffer_->Resource()->GetGPUVirtualAddress());
+			//commandList_->SetGraphicsRootDescriptorTable(6)
 			//commandList_->SetGraphicsRootDescriptorTable(7)
-			//commandList_->SetGraphicsRootDescriptorTable(8,
-			//	descriptorHandleAccesors_[descriptorHeapCBVSRVUAV_.Get()].GetGPUHandle(commonPassData_.cubemapSRVIndex_));
-			//commandList_->SetGraphicsRootDescriptorTable(9,
-			//	descriptorHandleAccesors_[descriptorHeapCBVSRVUAV_.Get()].GetGPUHandle(0));
+			commandList_->SetGraphicsRootDescriptorTable(8,
+				descriptorHandleAccesors_[descriptorHeapCBVSRVUAV_.Get()].GetGPUHandle(commonPassData_.cubemapSRVIndex_));
+			commandList_->SetGraphicsRootDescriptorTable(9,
+				descriptorHandleAccesors_[descriptorHeapCBVSRVUAV_.Get()].GetGPUHandle(0));
 
 
 			auto& mesh = renderItems_[0].desc_.mesh_;
