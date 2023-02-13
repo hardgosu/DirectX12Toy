@@ -66,10 +66,9 @@ public:
 	{
 		return (byteSize + 255) & ~255;
 	}
-
+	BYTE* pMappedData_{ nullptr };
 private:
 	ComPtr<ID3D12Resource> uploadBuffer_;
-	BYTE* pMappedData_{ nullptr };
 
 	UINT elementByteSize_{};
 	bool isConstantBuffer_{ false };

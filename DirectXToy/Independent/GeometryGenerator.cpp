@@ -662,3 +662,20 @@ GeometryGenerator::MeshData GeometryGenerator::CreateQuad(float x, float y, floa
 
 	return meshData;
 }
+
+GeometryGenerator::MeshData GeometryGenerator::CreateTestTriangle()
+{
+	MeshData meshData;
+	meshData.Vertices.resize(3);
+	// Define the geometry for a triangle.
+	meshData.Vertices[0].Position = XMFLOAT3{ 0.0f, 0.25f * 1.33f, 0.0f };
+	meshData.Vertices[1].Position = XMFLOAT3{ 1.0f, 0.0f, 0.0f };
+	meshData.Vertices[2].Position = XMFLOAT3();
+
+	meshData.Indices32.resize(3);
+	meshData.Indices32[0] = 0;
+	meshData.Indices32[1] = 1;
+	meshData.Indices32[2] = 2
+		;
+	return meshData;
+}

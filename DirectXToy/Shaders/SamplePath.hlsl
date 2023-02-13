@@ -24,7 +24,18 @@ struct VSOut
 VSOut VSMain(VSInput vin, uint instanceID : SV_InstanceID)
 {
 	VSOut vout = (VSOut)0.0f;
-
+    //vout.PosH = float4(vin.PosL, 1.0f);
+    InstanceData instData2 = gInstanceData[instanceID];
+    float4x4 identity = float4x4
+    (
+        1.0f, 0, 0, 0,
+        0, 1.0f, 0, 0,
+        0, 0, 1.0f, 0,
+        0, 0, 0, 1.0f
+    );
+    float4 posW2 = mul(float4(vin.PosL, 1.0f), identity);
+    vout.PosH = mul(mul(posW2, gProjectionMatrix), gProjectionMatrix);
+    return vout;
 	InstanceData instData = gInstanceData[instanceID];
 	MaterialData matData = gMaterials[instData.MaterialIndex];
     // Transform to world space.

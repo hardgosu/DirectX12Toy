@@ -11,9 +11,9 @@ void DirectXToy::Startup()
 	//To Handle Mouse Event or ETC GUI Event
 	auto initWndProc = []()
 	{
-		g_ProcedureMap.insert({ WM_LBUTTONUP, [](HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+		g_ProcedureMap.insert({ WM_DESTROY, [](HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			{
-
+				PostQuitMessage(0);
 			} });
 
 	};
@@ -323,14 +323,32 @@ void DirectXToy::Update(float deltaT)
 				CloseHandle(eventHandle);
 			}
 
-			ConstantBuffer1 constantBuffer1;
+			{
+				ConstantBuffer1 constantBuffer1;
 
-			constantBuffer1.eyePosW_ = camera_.GetPosition();
-			constantBuffer1.deltaTime_ = elapsedTime_;
-			constantBuffer1.viewMatrix_ = camera_.GetViewMatrix();
-			constantBuffer1.projectionMatrix_ = camera_.GetProjMatrix();
-			constantBuffer1.deltaTime_ = elapsedTime_;
-			currentPassData.constantBuffer_->CopyData(0, constantBuffer1);
+				constantBuffer1.eyePosW_ = camera_.GetPosition();
+				constantBuffer1.deltaTime_ = elapsedTime_;
+				constantBuffer1.deltaTime_ = elapsedTime_;
+
+				auto viewMatrix = XMLoadFloat4x4(&camera_.GetViewMatrix());
+				auto projectionMatrix = XMLoadFloat4x4(&camera_.GetProjMatrix());
+				XMStoreFloat4x4(&constantBuffer1.viewMatrix_, XMMatrixTranspose(viewMatrix));
+				XMStoreFloat4x4(&constantBuffer1.projectionMatrix_, XMMatrixTranspose(projectionMatrix));
+
+				currentPassData.constantBuffer_->CopyData(0, constantBuffer1);
+			}
+
+			{
+				InstanceData instanceData;
+				auto worldMatrix = XMLoadFloat4x4(&instanceData.worldMatrix_);
+				auto texTransform = XMLoadFloat4x4(&instanceData.texTransform_);
+				XMStoreFloat4x4(&instanceData.worldMatrix_, XMMatrixTranspose(worldMatrix));
+				XMStoreFloat4x4(&instanceData.texTransform_, XMMatrixTranspose(texTransform));
+
+				currentPassData.instanceBuffer_->CopyData(0, instanceData);
+			}
+			//const InstanceData& forTest = *reinterpret_cast<InstanceData*>(currentPassData.instanceBuffer_->pMappedData_);
+			//ASSERT(false);
 		}
 	};
 
@@ -408,7 +426,8 @@ void DirectXToy::RenderScene()
 
 			commandList_->IASetVertexBuffers(0, 1, &vb);
 			commandList_->IASetPrimitiveTopology(D3D12_PRIMITIVE_TOPOLOGY::D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
+			//commandList_->DrawInstanced(3, 1, 0, 0);
+			
 			if (ib.has_value())
 			{
 				commandList_->IASetIndexBuffer(&ib.value());
@@ -418,7 +437,7 @@ void DirectXToy::RenderScene()
 			{
 				commandList_->DrawInstanced(mesh->vertexCount_, 1, mesh->startVertexLocation_, 0);
 			}
-
+			
 			commandList_->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentSwapChainBuffer(),
 				D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
 		},
@@ -682,8 +701,8 @@ void DirectXToy::LoadMesh(ID3D12GraphicsCommandList* commandList, ID3D12CommandA
 	auto& vertexBuffer1 = mainVertexBuffer_;
 
 	GeometryGenerator generator;
-	auto meshData = generator.CreateBox(100.0f, 100.0f, 100.0f, 16);
-	auto meshData2 = generator.CreateBox(10.0f, 10.0f, 10.0f, 16);
+	auto meshData = generator.CreateTestTriangle();
+	auto meshData2 = generator.CreateTestTriangle();
 
 	struct MeshData
 	{
