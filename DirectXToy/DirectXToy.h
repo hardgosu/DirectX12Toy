@@ -105,7 +105,6 @@ private:
 	using InputElementsMap = std::map<InputElement, std::vector<D3D12_INPUT_ELEMENT_DESC>>;
 	InputElementsMap inputElementsMap_;
 
-
 	//ModelInstance m_ModelInst;
 	//ShadowCamera m_SunShadowCamera;
 	float elapsedTime_{};
@@ -407,6 +406,9 @@ public:
 		const XMFLOAT4X4& GetViewMatrix();
 		const XMFLOAT4X4& GetProjMatrix();
 		void SetProjMatrix(float fovY = MathHelper::Pi * 0.25f, float aspect = 1.0f, float nearZ = 1.0f, float farZ = 1000.0f);
+		//expect look vector always normalized
+		void MoveForward(float distance);
+		void MoveBackward(float distance);
 	private:
 		XMFLOAT3 right_{ 1.0f, 0, 0 };
 		XMFLOAT3 up_{ 0, 1.0f, 0 };
@@ -441,4 +443,46 @@ public:
 
 	void ExecuteCommandList(ID3D12GraphicsCommandList* commandList, ID3D12Fence* fence,
 		ID3D12CommandQueue* commandQueue, UINT64& fenceValue, bool sync = true, std::function<void()> && afterExecution = {}) const;
+private:
+	StateMachine subStates_;
+	struct StateHolder
+	{
+		struct GlobalState : IState
+		{
+			virtual void OnEnter(void* param) override;
+			virtual void OnUpdate(void* param) override;
+			virtual void OnEnd(void* param) override;
+		};
+		struct MainState : IState
+		{
+			virtual void OnEnter(void* param) override;
+			virtual void OnUpdate(void* param) override;
+			virtual void OnEnd(void* param) override;
+		};
+		struct EditState : IState
+		{
+			virtual void OnEnter(void* param) override;
+			virtual void OnUpdate(void* param) override;
+			virtual void OnEnd(void* param) override;
+		};
+	};
+private:
+	static constexpr unsigned InputW = 0x57;
+	static constexpr unsigned InputA = 0x41;
+	static constexpr unsigned InputS = 0x53;
+	static constexpr unsigned InputD = 0x44;
+
+	enum KeyState
+	{
+		Idle,
+		Down,
+		Up
+	};
+
+	static constexpr std::array<unsigned, 4> SupportedKeyCode
+	{
+		InputW, InputA, InputS, InputD
+	};
+	UINT8 keyStateBuffer_[256]{};
+	//bool IsKeyDowned(unsigned keyCode) const;
 };

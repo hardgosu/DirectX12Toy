@@ -33,6 +33,7 @@
 #include "Independent/DDSTextureLoader.h"
 #include "Independent/MathHelper.h"
 #include "Independent/UploadBuffer.h"
+#include "Independent/StateMachine.h"
 #include "Utility.h"
 
 #pragma comment(lib,"d3dcompiler.lib")
@@ -52,3 +53,5 @@ ComPtr<ID3DBlob> CompileShader(
 	const std::string& entrypoint,
 	const std::string& target);
 
+using WndProcT = std::function<void(HWND, UINT, WPARAM, LPARAM)>;
+using ProcedureMap = std::unordered_multimap<int, WndProcT>;

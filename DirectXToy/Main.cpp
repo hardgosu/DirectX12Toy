@@ -6,20 +6,18 @@ CREATE_APPLICATION(DirectXToy)
 HWND g_hWnd = nullptr;
 uint32_t g_DisplayWidth = 1440;
 uint32_t g_DisplayHeight = 960;
+ProcedureMap g_ProcedureMap;
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
-	switch (message)
+	auto found = g_ProcedureMap.equal_range(message);
+	for (auto begin = found.first; begin != found.second; ++begin)
 	{
-	case WM_SIZE:
-		//Display::Resize((UINT)(UINT64)lParam & 0xFFFF, (UINT)(UINT64)lParam >> 16);
-		break;
+		begin->second(hWnd, message, wParam, lParam);
+	}
 
-	case WM_DESTROY:
-		PostQuitMessage(0);
-		break;
-
-	default:
+	if (std::distance(found.first, found.second) == 0)
+	{
 		return DefWindowProc(hWnd, message, wParam, lParam);
 	}
 
@@ -83,7 +81,10 @@ int RunApplication(IGameApp& app, const wchar_t* className, HINSTANCE hInst, int
 		}
 		if (done)
 			break;
-
+		if (GetForegroundWindow() != g_hWnd)
+		{
+			continue;
+		}
 		//Tick
 		UINT64 end{};
 		QueryPerformanceCounter(reinterpret_cast<LARGE_INTEGER*>(&end));

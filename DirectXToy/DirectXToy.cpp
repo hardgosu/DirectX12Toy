@@ -4,9 +4,21 @@
 extern HWND g_hWnd;
 extern uint32_t g_DisplayWidth;
 extern uint32_t g_DisplayHeight;
+extern ProcedureMap g_ProcedureMap;
 
 void DirectXToy::Startup()
 {
+	//To Handle Mouse Event or ETC GUI Event
+	auto initWndProc = []()
+	{
+		g_ProcedureMap.insert({ WM_LBUTTONUP, [](HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+			{
+
+			} });
+
+	};
+	initWndProc();
+
 	ComPtr<ID3D12Debug> debugController;
 	auto hrr = (D3D12GetDebugInterface(IID_PPV_ARGS(&debugController)));
 	if (debugController != nullptr)
@@ -230,13 +242,68 @@ void DirectXToy::Update(float deltaT)
 		}
 	};
 	calculateFPS(deltaT);
-
 	//ProcessInput(Interrupt)
 	//Logic
 	//Render
+	auto processInput = [this]()
+	{		
+		for (const auto& keyCode : SupportedKeyCode)
+		{
+			if (GetAsyncKeyState(keyCode) & 0x8000)
+			{
+				keyStateBuffer_[keyCode] = KeyState::Down;
+			}
+			else if (keyStateBuffer_[keyCode] == KeyState::Down)
+			{
+				keyStateBuffer_[keyCode] = KeyState::Up;
+			}
+		}
+	};
 
 	auto logic = [this]()
 	{
+		constexpr float Speed = 5.0f;
+		if (keyStateBuffer_[InputS] == KeyState::Down)
+		{
+			camera_.MoveForward(Speed * elapsedTime_);
+		}
+		else if (keyStateBuffer_[InputS] == KeyState::Up)
+		{
+			keyStateBuffer_[InputS] = KeyState::Idle;
+		}
+
+
+		if (keyStateBuffer_[InputW] == KeyState::Down)
+		{
+			camera_.MoveBackward(Speed * elapsedTime_);
+		}
+		else if (keyStateBuffer_[InputW] == KeyState::Up)
+		{
+			keyStateBuffer_[InputW] = KeyState::Idle;
+		}
+
+
+		constexpr float AngleSpeed = MathHelper::Pi / 2.0f;
+		if (keyStateBuffer_[InputD] == KeyState::Down)
+		{
+			camera_.Rotate(Camera::Axis::Y, AngleSpeed * elapsedTime_);
+		}
+		else if (keyStateBuffer_[InputD] == KeyState::Up)
+		{
+			keyStateBuffer_[InputD] = KeyState::Idle;
+		}
+
+
+		if (keyStateBuffer_[InputA] == KeyState::Down)
+		{
+			camera_.Rotate(Camera::Axis::Y, -AngleSpeed * elapsedTime_);
+		}
+		else if (keyStateBuffer_[InputA] == KeyState::Up)
+		{
+			keyStateBuffer_[InputA] = KeyState::Idle;
+		}
+
+
 		currentPassDataIndex_ = (currentPassDataIndex_ + 1) % NumFrameResource;
 		auto& currentPassData = passData_[currentPassDataIndex_];
 		if (currentPassData.fence_ > fence_->GetCompletedValue())
@@ -254,6 +321,7 @@ void DirectXToy::Update(float deltaT)
 		currentPassData.constantBuffer_->CopyData(0, constantBuffer1);
 	};
 
+	processInput();
 	logic();
 	RenderScene();
 }
@@ -951,4 +1019,20 @@ void DirectXToy::Camera::SetProjMatrix(float fovY/* PI * 0.25 */, float aspect/*
 	farZ_ = farZ;
 
 	projDirty_ = true;
+}
+
+void DirectXToy::Camera::MoveForward(float distance)
+{
+	position_.x += look_.x * look_.x * distance;
+	position_.y += look_.y * look_.y * distance;
+	position_.z += look_.z * look_.z * distance;
+	viewDirty_ = true;
+}
+
+void DirectXToy::Camera::MoveBackward(float distance)
+{
+	position_.x -= look_.x * look_.x * distance;
+	position_.y -= look_.y * look_.y * distance;
+	position_.z -= look_.z * look_.z * distance;
+	viewDirty_ = true;
 }
