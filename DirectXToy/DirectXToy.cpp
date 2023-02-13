@@ -212,6 +212,7 @@ void DirectXToy::Startup()
 	auto prepareScene = [this]()
 	{
 		camera_.SetPosition(XMFLOAT3(0, -3.0f, -10.0f));
+		camera_.SetProjMatrix(0.25f * MathHelper::Pi, static_cast<float>(g_DisplayWidth) / g_DisplayHeight, 1.0f, 1000.0f);
 	};
 	prepareScene();
 }
@@ -270,7 +271,7 @@ void DirectXToy::Update(float deltaT)
 	auto logic = [this]()
 	{
 		{
-			constexpr float Speed = 5.0f;
+			constexpr float Speed = 25.0f;
 			if (keyStateBuffer_[InputW] == KeyState::Down)
 			{
 				camera_.MoveForward(Speed * elapsedTime_);
@@ -291,7 +292,7 @@ void DirectXToy::Update(float deltaT)
 			}
 
 
-			constexpr float AngleSpeed = MathHelper::Pi / 2.0f;
+			constexpr float AngleSpeed = MathHelper::Pi;
 			if (keyStateBuffer_[InputD] == KeyState::Down)
 			{
 				camera_.Rotate(Camera::Axis::Y, AngleSpeed * elapsedTime_);
@@ -701,7 +702,7 @@ void DirectXToy::LoadMesh(ID3D12GraphicsCommandList* commandList, ID3D12CommandA
 	auto& vertexBuffer1 = mainVertexBuffer_;
 
 	GeometryGenerator generator;
-	auto meshData = generator.CreateTestTriangle();
+	auto meshData = generator.CreateBox(10.0f, 10.0f, 10.0f, 4);
 	auto meshData2 = generator.CreateTestTriangle();
 
 	struct MeshData
