@@ -329,7 +329,7 @@ public:
 		float spotPower_{ 64.0f };						// spot light only
 	};
 
-	static constexpr unsigned MaxLights = 16;
+	static constexpr unsigned MaxLights = 3;
 
 	struct ConstantBuffer1
 	{
@@ -343,7 +343,7 @@ public:
 		float deltaTime_{};
 		XMFLOAT2 pad2_{};
 		Light lights_[MaxLights];
-		XMFLOAT4 ambientLight_{ 0.0f, 0.0f, 0.0f, 1.0f };
+		XMFLOAT4 ambientLight_{ 0.0f, 0.3f, 0.6f, 1.0f };
 		XMFLOAT2 renderTargetSize_{ 0.0f, 0.0f };
 		XMFLOAT2 inverseRenderTargetSize_{ 0.0f, 0.0f };
 	};

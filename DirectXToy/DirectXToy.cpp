@@ -234,6 +234,13 @@ void DirectXToy::Update(float deltaT)
 		{
 			std::wstring fpsText = L"FPS : ";
 			fpsText += std::to_wstring(frameCount_);
+			fpsText += L" Camera : ( ";
+			fpsText += std::to_wstring(camera_.GetPosition().x);
+			fpsText += L", ";
+			fpsText += std::to_wstring(camera_.GetPosition().y);
+			fpsText += L", ";
+			fpsText += std::to_wstring(camera_.GetPosition().z);
+			fpsText += L" )";
 
 			SetWindowText(g_hWnd, fpsText.c_str());
 
@@ -319,6 +326,9 @@ void DirectXToy::Update(float deltaT)
 			ConstantBuffer1 constantBuffer1;
 
 			constantBuffer1.eyePosW_ = camera_.GetPosition();
+			constantBuffer1.deltaTime_ = elapsedTime_;
+			constantBuffer1.viewMatrix_ = camera_.GetViewMatrix();
+			constantBuffer1.projectionMatrix_ = camera_.GetProjMatrix();
 			constantBuffer1.deltaTime_ = elapsedTime_;
 			currentPassData.constantBuffer_->CopyData(0, constantBuffer1);
 		}
