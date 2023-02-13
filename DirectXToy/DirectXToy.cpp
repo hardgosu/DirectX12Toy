@@ -9,13 +9,19 @@ extern ProcedureMap g_ProcedureMap;
 void DirectXToy::Startup()
 {
 	//To Handle Mouse Event or ETC GUI Event
-	auto initWndProc = []()
+	auto initWndProc = [this]()
 	{
 		g_ProcedureMap.insert({ WM_DESTROY, [](HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			{
 				PostQuitMessage(0);
 			} });
 
+		g_ProcedureMap.insert({ WM_SIZE, [this](HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+			{
+				g_DisplayWidth = LOWORD(lParam);
+				g_DisplayHeight = HIWORD(lParam);
+				ResetSwapChain(commandList_.Get(), mainCommandAllocator_.Get());
+			} });
 	};
 	initWndProc();
 
@@ -884,6 +890,8 @@ void DirectXToy::ResetSwapChain(ID3D12GraphicsCommandList* commandList, ID3D12Co
 	mainViewport_.MaxDepth = 1.0f;
 
 	mainScissor_ = { 0, 0, static_cast<long>(g_DisplayWidth), static_cast<long>(g_DisplayHeight) };
+
+	camera_.SetProjMatrix(0.25f * MathHelper::Pi, static_cast<float>(g_DisplayWidth) / g_DisplayHeight, 1.0f, 1000.0f);
 }
 
 ID3D12Resource* DirectXToy::CurrentSwapChainBuffer() const
