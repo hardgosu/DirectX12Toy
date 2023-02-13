@@ -401,13 +401,14 @@ void DirectXToy::RenderScene()
 
 			if (ib.has_value())
 			{
-				//commandList_->IASetIndexBuffer(&ib.value());
-				//commandList_->DrawIndexedInstanced(mesh->ibDesc_->indexCount_, mesh->ibDesc_->indexCount_, 0, mesh->startVertexLocation_, 0);
+				commandList_->IASetIndexBuffer(&ib.value());
+				commandList_->DrawIndexedInstanced(mesh->ibDesc_->indexCount_, 1, mesh->ibDesc_->startIndexLocation_, mesh->startVertexLocation_, 0);
+			}
+			else
+			{
+				commandList_->DrawInstanced(mesh->vertexCount_, 1, mesh->startVertexLocation_, 0);
 			}
 
-			commandList_->DrawInstanced(3, 1, 0, 0);
-			
-			
 			commandList_->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentSwapChainBuffer(),
 				D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
 		},
@@ -451,13 +452,13 @@ void DirectXToy::LoadRenderItem()
 		desc.pso_ = psoMap_[PSO::StaticMesh].Get();
 		desc.instanceBufferCount_ = InstanceBufferSize;
 
-		desc.mesh_ = &meshMap_["GeoSphere"];
-		renderItems_.push_back(desc);
-		desc.mesh_ = &meshMap_["GeoSphere"];
-		renderItems_.push_back(desc);
 		desc.mesh_ = &meshMap_["Box"];
 		renderItems_.push_back(desc);
 		desc.mesh_ = &meshMap_["Box"];
+		renderItems_.push_back(desc);
+		desc.mesh_ = &meshMap_["GeoSphere"];
+		renderItems_.push_back(desc);
+		desc.mesh_ = &meshMap_["GeoSphere"];
 		renderItems_.push_back(desc);
 	};
 	buildRenderItem();
@@ -671,7 +672,7 @@ void DirectXToy::LoadMesh(ID3D12GraphicsCommandList* commandList, ID3D12CommandA
 	auto& vertexBuffer1 = mainVertexBuffer_;
 
 	GeometryGenerator generator;
-	auto meshData = generator.CreateGeosphere(10.0f, 16);
+	auto meshData = generator.CreateBox(100.0f, 100.0f, 100.0f, 16);
 	auto meshData2 = generator.CreateBox(10.0f, 10.0f, 10.0f, 16);
 
 	struct MeshData
@@ -865,8 +866,8 @@ void DirectXToy::VertexBuffer::Confirm(ID3D12Device* pDevice, ID3D12GraphicsComm
 	defaultVertexBuffer_ = CreateDefaultBuffer(pDevice, pCommandList, cpuVertexBuffer_.get(), vbSize_, uploadVertexBuffer_, clearData);
 	ASSERT(defaultVertexBuffer_ != nullptr);
 
-	//defaultIndexBuffer_ = CreateDefaultBuffer(pDevice, pCommandList, cpuIndexBuffer_.get(), ibSize_, uploadIndexBuffer_, clearData);
-	//ASSERT(defaultIndexBuffer_ != nullptr);
+	defaultIndexBuffer_ = CreateDefaultBuffer(pDevice, pCommandList, cpuIndexBuffer_.get(), ibSize_, uploadIndexBuffer_, clearData);
+	ASSERT(defaultIndexBuffer_ != nullptr);
 }
 
 CD3DX12_CPU_DESCRIPTOR_HANDLE DirectXToy::DescriptorHandleAccesor::GetCPUHandle(int index) const
