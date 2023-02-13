@@ -1065,16 +1065,50 @@ void DirectXToy::Camera::SetProjMatrix(float fovY/* PI * 0.25 */, float aspect/*
 
 void DirectXToy::Camera::MoveForward(float distance)
 {
-	position_.x += look_.x * look_.x * distance;
-	position_.y += look_.y * look_.y * distance;
-	position_.z += look_.z * look_.z * distance;
+	int signX = 1;
+	int signY = 1;
+	int signZ = 1;
+	
+	if (look_.x < 0)
+	{
+		signX = -1;
+	}
+	if (look_.y < 0)
+	{
+		signY = -1;
+	}
+	if (look_.z < 0)
+	{
+		signZ = -1;
+	}
+
+	position_.x += look_.x * look_.x * distance * signX;
+	position_.y += look_.y * look_.y * distance * signY;
+	position_.z += look_.z * look_.z * distance * signZ;
 	viewDirty_ = true;
 }
 
 void DirectXToy::Camera::MoveBackward(float distance)
 {
-	position_.x -= look_.x * look_.x * distance;
-	position_.y -= look_.y * look_.y * distance;
-	position_.z -= look_.z * look_.z * distance;
+	int signX = 1;
+	int signY = 1;
+	int signZ = 1;
+
+	if (look_.x < 0)
+	{
+		signX = -1;
+	}
+	if (look_.y < 0)
+	{
+		signY = -1;
+	}
+	if (look_.z < 0)
+	{
+		signZ = -1;
+	}
+
+	position_.x -= look_.x * look_.x * distance * signX;
+	position_.y -= look_.y * look_.y * distance * signY;
+	position_.z -= look_.z * look_.z * distance * signZ;
 	viewDirty_ = true;
 }
