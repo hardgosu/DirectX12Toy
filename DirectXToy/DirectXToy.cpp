@@ -891,6 +891,7 @@ void DirectXToy::ResetSwapChain(ID3D12GraphicsCommandList* commandList, ID3D12Co
 
 	mainScissor_ = { 0, 0, static_cast<long>(g_DisplayWidth), static_cast<long>(g_DisplayHeight) };
 
+	//Update Projection Matrix
 	camera_.SetProjMatrix(0.25f * MathHelper::Pi, static_cast<float>(g_DisplayWidth) / g_DisplayHeight, 1.0f, 1000.0f);
 }
 
