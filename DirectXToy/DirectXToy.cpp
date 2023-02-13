@@ -262,63 +262,66 @@ void DirectXToy::Update(float deltaT)
 
 	auto logic = [this]()
 	{
-		constexpr float Speed = 5.0f;
-		if (keyStateBuffer_[InputS] == KeyState::Down)
 		{
-			camera_.MoveForward(Speed * elapsedTime_);
-		}
-		else if (keyStateBuffer_[InputS] == KeyState::Up)
-		{
-			keyStateBuffer_[InputS] = KeyState::Idle;
-		}
+			constexpr float Speed = 5.0f;
+			if (keyStateBuffer_[InputW] == KeyState::Down)
+			{
+				camera_.MoveForward(Speed * elapsedTime_);
+			}
+			else if (keyStateBuffer_[InputW] == KeyState::Up)
+			{
+				keyStateBuffer_[InputW] = KeyState::Idle;
+			}
 
 
-		if (keyStateBuffer_[InputW] == KeyState::Down)
-		{
-			camera_.MoveBackward(Speed * elapsedTime_);
-		}
-		else if (keyStateBuffer_[InputW] == KeyState::Up)
-		{
-			keyStateBuffer_[InputW] = KeyState::Idle;
-		}
+			if (keyStateBuffer_[InputS] == KeyState::Down)
+			{
+				camera_.MoveBackward(Speed * elapsedTime_);
+			}
+			else if (keyStateBuffer_[InputS] == KeyState::Up)
+			{
+				keyStateBuffer_[InputS] = KeyState::Idle;
+			}
 
 
-		constexpr float AngleSpeed = MathHelper::Pi / 2.0f;
-		if (keyStateBuffer_[InputD] == KeyState::Down)
-		{
-			camera_.Rotate(Camera::Axis::Y, AngleSpeed * elapsedTime_);
-		}
-		else if (keyStateBuffer_[InputD] == KeyState::Up)
-		{
-			keyStateBuffer_[InputD] = KeyState::Idle;
-		}
+			constexpr float AngleSpeed = MathHelper::Pi / 2.0f;
+			if (keyStateBuffer_[InputD] == KeyState::Down)
+			{
+				camera_.Rotate(Camera::Axis::Y, AngleSpeed * elapsedTime_);
+			}
+			else if (keyStateBuffer_[InputD] == KeyState::Up)
+			{
+				keyStateBuffer_[InputD] = KeyState::Idle;
+			}
 
 
-		if (keyStateBuffer_[InputA] == KeyState::Down)
-		{
-			camera_.Rotate(Camera::Axis::Y, -AngleSpeed * elapsedTime_);
-		}
-		else if (keyStateBuffer_[InputA] == KeyState::Up)
-		{
-			keyStateBuffer_[InputA] = KeyState::Idle;
-		}
-
-
-		currentPassDataIndex_ = (currentPassDataIndex_ + 1) % NumFrameResource;
-		auto& currentPassData = passData_[currentPassDataIndex_];
-		if (currentPassData.fence_ > fence_->GetCompletedValue())
-		{
-			HANDLE eventHandle = CreateEventEx(nullptr, false, false, EVENT_ALL_ACCESS);
-			ASSERT_SUCCEEDED(fence_->SetEventOnCompletion(currentPassData.fence_, eventHandle));
-			WaitForSingleObject(eventHandle, INFINITE);
-			CloseHandle(eventHandle);
+			if (keyStateBuffer_[InputA] == KeyState::Down)
+			{
+				camera_.Rotate(Camera::Axis::Y, -AngleSpeed * elapsedTime_);
+			}
+			else if (keyStateBuffer_[InputA] == KeyState::Up)
+			{
+				keyStateBuffer_[InputA] = KeyState::Idle;
+			}
 		}
 
-		ConstantBuffer1 constantBuffer1;
+		{
+			currentPassDataIndex_ = (currentPassDataIndex_ + 1) % NumFrameResource;
+			auto& currentPassData = passData_[currentPassDataIndex_];
+			if (currentPassData.fence_ > fence_->GetCompletedValue())
+			{
+				HANDLE eventHandle = CreateEventEx(nullptr, false, false, EVENT_ALL_ACCESS);
+				ASSERT_SUCCEEDED(fence_->SetEventOnCompletion(currentPassData.fence_, eventHandle));
+				WaitForSingleObject(eventHandle, INFINITE);
+				CloseHandle(eventHandle);
+			}
 
-		constantBuffer1.eyePosW_ = camera_.GetPosition();
-		constantBuffer1.deltaTime_ = elapsedTime_;
-		currentPassData.constantBuffer_->CopyData(0, constantBuffer1);
+			ConstantBuffer1 constantBuffer1;
+
+			constantBuffer1.eyePosW_ = camera_.GetPosition();
+			constantBuffer1.deltaTime_ = elapsedTime_;
+			currentPassData.constantBuffer_->CopyData(0, constantBuffer1);
+		}
 	};
 
 	processInput();
