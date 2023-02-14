@@ -354,7 +354,14 @@ void DirectXToy::Update(float deltaT)
 
 				currentPassData.instanceBuffer_->CopyData(0, instanceData);
 			}
-			//const InstanceData& forTest = *reinterpret_cast<InstanceData*>(currentPassData.instanceBuffer_->pMappedData_);
+
+			{
+				Material materialData;
+				auto materialTransform = XMLoadFloat4x4(&materialData.materialTransform_);
+				XMStoreFloat4x4(&materialData.materialTransform_, XMMatrixTranspose(materialTransform));
+				currentPassData.materialBuffer_->CopyData(0, materialData);
+			}
+			//const Material& forTest = *reinterpret_cast<Material*>(currentPassData.materialBuffer_->pMappedData_);
 			//ASSERT(false);
 		}
 	};
@@ -620,7 +627,7 @@ void DirectXToy::LoadTexture(ID3D12GraphicsCommandList* commandList, ID3D12Comma
 		L"Textures/tile_nmap.dds",
 		L"Textures/white1x1.dds",
 		L"Textures/default_nmap.dds",
-		L"Textures/desertcube1024.dds",
+		L"Textures/snowcube1024.dds",
 	};
 
 	ASSERT(texFilenames.size() == texNames.size());

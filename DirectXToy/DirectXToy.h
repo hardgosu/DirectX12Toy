@@ -343,7 +343,7 @@ public:
 		float deltaTime_{};
 		XMFLOAT2 pad2_{};
 		Light lights_[MaxLights];
-		XMFLOAT4 ambientLight_{ 0.0f, 0.3f, 0.6f, 1.0f };
+		XMFLOAT4 ambientLight_{ 0.2f, 0.2f, 0.2f, 0.2f };
 		XMFLOAT2 renderTargetSize_{ 0.0f, 0.0f };
 		XMFLOAT2 inverseRenderTargetSize_{ 0.0f, 0.0f };
 	};

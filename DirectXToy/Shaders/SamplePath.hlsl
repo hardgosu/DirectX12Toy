@@ -91,7 +91,7 @@ float4 PSMain(VSOut pin) : SV_Target
     float4 directLight = ComputeLighting(gLights, mat, pin.PosW,
         bumpedNormalW, toEyeW, shadowFactor);
 
-	float4 ambient = float4(0.2f, 0.2f, 0.2f, 0.2f);
+    float4 ambient = gAmbientLight*diffuseAlbedo;
     float4 litColor = ambient + directLight;
 
 	// Add in specular reflections.
