@@ -342,6 +342,14 @@ void DirectXToy::Update(float deltaT)
 				XMStoreFloat4x4(&constantBuffer1.viewMatrix_, XMMatrixTranspose(viewMatrix));
 				XMStoreFloat4x4(&constantBuffer1.projectionMatrix_, XMMatrixTranspose(projectionMatrix));
 
+				constantBuffer1.ambientLight_ = { 0.25f, 0.25f, 0.35f, 1.0f };
+				constantBuffer1.lights_[0].direction_ = {0.57735f, -0.57735f, 0.57735f};
+				constantBuffer1.lights_[0].strength_ = { 0.8f, 0.8f, 0.8f };
+				constantBuffer1.lights_[1].direction_ = { -0.57735f, -0.57735f, 0.57735f };
+				constantBuffer1.lights_[1].strength_ = { 1.0f, 1.0f, 1.0f };
+				constantBuffer1.lights_[2].direction_ = { 0.0f, -0.707f, -0.707f };
+				constantBuffer1.lights_[2].strength_ = { 0.7f, 0.7f, 0.7f };
+
 				currentPassData.constantBuffer_->CopyData(0, constantBuffer1);
 			}
 
@@ -359,6 +367,7 @@ void DirectXToy::Update(float deltaT)
 				Material materialData;
 				auto materialTransform = XMLoadFloat4x4(&materialData.materialTransform_);
 				XMStoreFloat4x4(&materialData.materialTransform_, XMMatrixTranspose(materialTransform));
+				materialData.normalMapIndex_ = 1;
 				currentPassData.materialBuffer_->CopyData(0, materialData);
 			}
 			//const Material& forTest = *reinterpret_cast<Material*>(currentPassData.materialBuffer_->pMappedData_);

@@ -293,7 +293,7 @@ public:
 	{
 		XMFLOAT4 diffuseAlbedo_{ 1.0f, 1.0f, 1.0f, 1.0f };
 		XMFLOAT3 fresnelR0_{ 0.01f, 0.01f, 0.01f };
-		float roughness_{ 0.5f };
+		float roughness_{ 0.1f };
 		XMFLOAT4X4 materialTransform_ = MathHelper::Identity4x4();
 		UINT normalMapIndex_{};
 		UINT diffuseMapIndex_{};
