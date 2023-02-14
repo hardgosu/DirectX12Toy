@@ -24,10 +24,13 @@ struct VSOut
 VSOut VSMain(VSInput vin, uint instanceID : SV_InstanceID)
 {
 	VSOut vout = (VSOut)0.0f;
-	InstanceData instData = gInstanceData[instanceID];
-	MaterialData matData = gMaterials[instData.MaterialIndex];
+	InstanceData instData = gInstanceData[0];
+	MaterialData matData = gMaterials[0];
     // Transform to world space.
-    float4 posW = mul(float4(vin.PosL, 1.0f), instData.WorldMatrix);
+    float4 posW = float4(vin.PosL, 1.0f);
+    posW.x += (instanceID % 20) * 15.0f;
+    posW.y += (instanceID / 20) * 15.0f;
+    posW.z += (instanceID / 20) * 15.0f;
     vout.PosW = posW.xyz;
 
     // Assumes nonuniform scaling; otherwise, need to use inverse-transpose of world matrix.
@@ -51,7 +54,7 @@ VSOut VSMain(VSInput vin, uint instanceID : SV_InstanceID)
 
 float4 PSMain(VSOut pin) : SV_Target
 {
-	InstanceData instData = gInstanceData[pin.instanceID];
+	InstanceData instData = gInstanceData[0];
 	// Fetch the material data.
 	MaterialData matData = gMaterials[instData.MaterialIndex];
 	float4 diffuseAlbedo = matData.DiffuseAlbedo;

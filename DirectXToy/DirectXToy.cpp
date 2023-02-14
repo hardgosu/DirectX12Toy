@@ -438,7 +438,7 @@ void DirectXToy::RenderScene()
 			if (ib.has_value())
 			{
 				commandList_->IASetIndexBuffer(&ib.value());
-				commandList_->DrawIndexedInstanced(mesh->ibDesc_->indexCount_, 1, mesh->ibDesc_->startIndexLocation_, mesh->startVertexLocation_, 0);
+				commandList_->DrawIndexedInstanced(mesh->ibDesc_->indexCount_, 12000, mesh->ibDesc_->startIndexLocation_, mesh->startVertexLocation_, 0);
 			}
 			else
 			{
