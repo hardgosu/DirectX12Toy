@@ -167,32 +167,39 @@ void GetFinalTransforms(volatile float timePos, std::vector<XMFLOAT4X4>& finalTr
 
 int main()
 {
-	auto begin = std::chrono::high_resolution_clock::now();
-	
-	/*
-	std::vector<std::thread> threads;
-	for (int i{}; i < ThreadCount; ++i)
 	{
-		threads.emplace_back([]() 
-			{ 
-				for (int i{}; i < Loop; ++i)
-				{
-					std::vector<XMFLOAT4X4> finalTransforms(50);
-					GetFinalTransforms(0.5f, finalTransforms);
-				}
-			});
-	}
-	std::for_each(threads.begin(), threads.end(), [](auto& thread) { thread.join(); });
-	*/
-	
-	concurrency::parallel_for(0, Loop * ThreadCount, [](int i)
-		{
-			std::vector<XMFLOAT4X4> finalTransforms(50);
-			GetFinalTransforms(0.5f, finalTransforms);
+		auto begin = std::chrono::high_resolution_clock::now();
 
-		});
-	
-	auto end = std::chrono::high_resolution_clock::now();
-	std::cout << "Time : "
-		<< std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << " ms" << std::endl;
+		std::vector<std::thread> threads;
+		for (int i{}; i < ThreadCount; ++i)
+		{
+			threads.emplace_back([]()
+				{
+					for (int i{}; i < Loop; ++i)
+					{
+						std::vector<XMFLOAT4X4> finalTransforms(50);
+						GetFinalTransforms(0.5f, finalTransforms);
+					}
+				});
+		}
+		std::for_each(threads.begin(), threads.end(), [](auto& thread) { thread.join(); });
+		
+		auto end = std::chrono::high_resolution_clock::now();
+		std::cout << "Time : "
+			<< std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << " ms" << std::endl;
+	}
+	{
+		auto begin = std::chrono::high_resolution_clock::now();
+		concurrency::parallel_for(0, Loop * ThreadCount, [](int i)
+			{
+				std::vector<XMFLOAT4X4> finalTransforms(50);
+				GetFinalTransforms(0.5f, finalTransforms);
+
+			});
+
+		auto end = std::chrono::high_resolution_clock::now();
+		std::cout << "Time : "
+			<< std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << " ms" << std::endl;
+
+	}
 }
