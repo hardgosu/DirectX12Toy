@@ -6,6 +6,15 @@ extern uint32_t g_DisplayWidth;
 extern uint32_t g_DisplayHeight;
 extern ProcedureMap g_ProcedureMap;
 
+namespace
+{
+	bool rightMouseDown;
+	int lastMouseX;
+	int	lastMouseY; 
+
+	bool middleMouseDown;
+}
+
 void DirectXToy::Startup()
 {
 	//To Handle Mouse Event or ETC GUI Event
@@ -21,6 +30,57 @@ void DirectXToy::Startup()
 				g_DisplayWidth = LOWORD(lParam);
 				g_DisplayHeight = HIWORD(lParam);
 				ResetSwapChain(commandList_.Get(), mainCommandAllocator_.Get());
+			} });
+
+		g_ProcedureMap.insert({ WM_RBUTTONDOWN, [this](HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+			{
+				rightMouseDown = true;
+				lastMouseX = LOWORD(lParam);
+				lastMouseY = HIWORD(lParam);
+			} });
+
+		g_ProcedureMap.insert({ WM_RBUTTONUP, [this](HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+			{
+				rightMouseDown = false;
+			} });
+
+		g_ProcedureMap.insert({ WM_MOUSEMOVE, [this](HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+			{
+				//Capture Mouse Position
+				int mouseX = LOWORD(lParam);
+				int mouseY = HIWORD(lParam);
+				float dx = static_cast<float>(mouseX - lastMouseX);
+				float dy = static_cast<float>(mouseY - lastMouseY);
+
+				lastMouseX = mouseX;
+				lastMouseY = mouseY;
+
+				if (rightMouseDown)
+				{
+					constexpr float Speed = 5.0f;
+
+					camera_.Rotate(Camera::Axis::Y, dx * elapsedTime_ * Speed);
+					camera_.Rotate(Camera::Axis::X, dy * elapsedTime_ * Speed);
+				}
+				else if (middleMouseDown)
+				{
+					constexpr float Speed = 30.0f;
+
+					camera_.MoveAlongDirection(camera_.Right(), dx * elapsedTime_ * Speed);
+					camera_.MoveAlongDirection(camera_.Up(), -dy * elapsedTime_ * Speed);
+				}
+			} });
+
+		g_ProcedureMap.insert({ WM_MBUTTONDOWN, [this](HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+			{
+				middleMouseDown = true;
+				lastMouseX = LOWORD(lParam);
+				lastMouseY = HIWORD(lParam);
+			} });
+
+		g_ProcedureMap.insert({ WM_MBUTTONUP, [this](HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+			{
+				middleMouseDown = false;
 			} });
 	};
 	initWndProc();
@@ -294,7 +354,7 @@ void DirectXToy::Update(float deltaT)
 			constexpr float Speed = 25.0f;
 			if (keyStateBuffer_[InputW] == KeyState::Down)
 			{
-				camera_.MoveForward(Speed * elapsedTime_);
+				camera_.MoveAlongDirection(camera_.Look(), Speed * elapsedTime_);
 			}
 			else if (keyStateBuffer_[InputW] == KeyState::Up)
 			{
@@ -304,7 +364,7 @@ void DirectXToy::Update(float deltaT)
 
 			if (keyStateBuffer_[InputS] == KeyState::Down)
 			{
-				camera_.MoveBackward(Speed * elapsedTime_);
+				camera_.MoveAlongDirection(camera_.Look(), -Speed * elapsedTime_);
 			}
 			else if (keyStateBuffer_[InputS] == KeyState::Up)
 			{
@@ -1015,17 +1075,17 @@ void DirectXToy::Camera::Rotate(Axis axis, float angle)
 	{
 		case Axis::X:
 		{
-			rotationMatrix = XMMatrixRotationX(angle);
+			rotationMatrix = XMMatrixRotationAxis(XMLoadFloat3(&right_), angle);
 		}
 		break;
 		case Axis::Y:
 		{
-			rotationMatrix = XMMatrixRotationY(angle);
+			rotationMatrix = XMMatrixRotationAxis(XMLoadFloat3(&up_), angle);
 		}
 		break;
 		case Axis::Z:
 		{
-			rotationMatrix = XMMatrixRotationZ(angle);
+			rotationMatrix = XMMatrixRotationAxis(XMLoadFloat3(&look_), angle);
 		}
 		break;
 		default:
@@ -1098,52 +1158,30 @@ void DirectXToy::Camera::SetProjMatrix(float fovY/* PI * 0.25 */, float aspect/*
 	projDirty_ = true;
 }
 
-void DirectXToy::Camera::MoveForward(float distance)
+void DirectXToy::Camera::MoveAlongDirection(const XMFLOAT3& direction, float distance, bool doNormalize/*false*/)
 {
-	int signX = 1;
-	int signY = 1;
-	int signZ = 1;
-	
-	if (look_.x < 0)
-	{
-		signX = -1;
-	}
-	if (look_.y < 0)
-	{
-		signY = -1;
-	}
-	if (look_.z < 0)
-	{
-		signZ = -1;
-	}
+	//if (doNormalize)
+	//normalize..
 
-	position_.x += look_.x * look_.x * distance * signX;
-	position_.y += look_.y * look_.y * distance * signY;
-	position_.z += look_.z * look_.z * distance * signZ;
-	viewDirty_ = true;
-}
-
-void DirectXToy::Camera::MoveBackward(float distance)
-{
 	int signX = 1;
 	int signY = 1;
 	int signZ = 1;
 
-	if (look_.x < 0)
+	if (direction.x < 0)
 	{
 		signX = -1;
 	}
-	if (look_.y < 0)
+	if (direction.y < 0)
 	{
 		signY = -1;
 	}
-	if (look_.z < 0)
+	if (direction.z < 0)
 	{
 		signZ = -1;
 	}
 
-	position_.x -= look_.x * look_.x * distance * signX;
-	position_.y -= look_.y * look_.y * distance * signY;
-	position_.z -= look_.z * look_.z * distance * signZ;
+	position_.x += direction.x * direction.x * distance * signX;
+	position_.y += direction.y * direction.y * distance * signY;
+	position_.z += direction.z * direction.z * distance * signZ;
 	viewDirty_ = true;
 }

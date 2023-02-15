@@ -408,8 +408,19 @@ public:
 		const XMFLOAT4X4& GetProjMatrix();
 		void SetProjMatrix(float fovY = MathHelper::Pi * 0.25f, float aspect = 1.0f, float nearZ = 1.0f, float farZ = 1000.0f);
 		//expect look vector always normalized
-		void MoveForward(float distance);
-		void MoveBackward(float distance);
+		const XMFLOAT3& Look() const
+		{
+			return look_;
+		}
+		const XMFLOAT3& Right() const
+		{
+			return right_;
+		}
+		const XMFLOAT3& Up() const
+		{
+			return up_;
+		}
+		void MoveAlongDirection(const XMFLOAT3& direction, float distance, bool doNormalize = false);
 	private:
 		XMFLOAT3 right_{ 1.0f, 0, 0 };
 		XMFLOAT3 up_{ 0, 1.0f, 0 };
