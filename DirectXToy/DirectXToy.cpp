@@ -255,7 +255,6 @@ void DirectXToy::Update(float deltaT)
 			frameCount_ = 0;
 		}
 	};
-	calculateFPS(deltaT);
 	//ProcessInput(Interrupt)
 	//Logic
 	//Render
@@ -375,6 +374,7 @@ void DirectXToy::Update(float deltaT)
 		}
 	};
 
+	calculateFPS(deltaT);
 	processInput();
 	logic();
 	RenderScene();
