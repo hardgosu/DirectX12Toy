@@ -25,129 +25,145 @@ void DirectXToy::Startup()
 	};
 	initWndProc();
 
-	ComPtr<ID3D12Debug> debugController;
-	auto hrr = (D3D12GetDebugInterface(IID_PPV_ARGS(&debugController)));
-	if (debugController != nullptr)
+	//Enable Debug Layer
 	{
-		debugController->EnableDebugLayer();
+		ComPtr<ID3D12Debug> debugController;
+		auto hrr = (D3D12GetDebugInterface(IID_PPV_ARGS(&debugController)));
+		if (debugController != nullptr)
+		{
+			debugController->EnableDebugLayer();
+		}
 	}
-	auto createDeviceWithBestAdapter = [](Factory& factory, Device& outputDevice)
+
+	//Create Device
 	{
-		//enum adapters
-		ComPtr<IDXGIAdapter1> bestAdapter;
-		ComPtr<IDXGIAdapter1> iterAdapter;
-		SIZE_T MaxSize = 0;
-		for (UINT i{}; factory->EnumAdapters1(i, &iterAdapter) != DXGI_ERROR_NOT_FOUND; ++i)
+		auto createDeviceWithBestAdapter = [](Factory& factory, Device& outputDevice)
 		{
-			DXGI_ADAPTER_DESC1 desc;
-			iterAdapter->GetDesc1(&desc);
-			//소프트웨어 어댑터인가?
-			if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
+			//enum adapters
+			ComPtr<IDXGIAdapter1> bestAdapter;
+			ComPtr<IDXGIAdapter1> iterAdapter;
+			SIZE_T MaxSize = 0;
+			for (UINT i{}; factory->EnumAdapters1(i, &iterAdapter) != DXGI_ERROR_NOT_FOUND; ++i)
 			{
-				continue;
+				DXGI_ADAPTER_DESC1 desc;
+				iterAdapter->GetDesc1(&desc);
+				//소프트웨어 어댑터인가?
+				if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
+				{
+					continue;
+				}
+
+				if (desc.DedicatedVideoMemory < MaxSize)
+				{
+					continue;
+				}
+
+				MaxSize = desc.DedicatedVideoMemory;
+				bestAdapter.Swap(iterAdapter.Get());
 			}
 
-			if (desc.DedicatedVideoMemory < MaxSize)
+			std::vector<D3D_FEATURE_LEVEL> featureLevels
 			{
-				continue;
+				D3D_FEATURE_LEVEL_12_1,
+				D3D_FEATURE_LEVEL_12_0,
+				D3D_FEATURE_LEVEL_11_1,
+				D3D_FEATURE_LEVEL_11_0,
+			};
+			for (auto feature : featureLevels)
+			{
+				if (auto result = D3D12CreateDevice(bestAdapter.Get(), feature, IID_PPV_ARGS(&outputDevice)); result == S_OK)
+				{
+					return;
+				}
 			}
 
-			MaxSize = desc.DedicatedVideoMemory;
-			bestAdapter.Swap(iterAdapter.Get());
-		}
-
-		std::vector<D3D_FEATURE_LEVEL> featureLevels
-		{
-			D3D_FEATURE_LEVEL_12_1,
-			D3D_FEATURE_LEVEL_12_0,
-			D3D_FEATURE_LEVEL_11_1,
-			D3D_FEATURE_LEVEL_11_0,
+			factory->EnumWarpAdapter(IID_PPV_ARGS(&bestAdapter));
+			for (auto feature : featureLevels)
+			{
+				if (auto result = D3D12CreateDevice(bestAdapter.Get(), feature, IID_PPV_ARGS(&outputDevice)); result == S_OK)
+				{
+					return;
+				}
+			}
 		};
-		for (auto feature : featureLevels)
-		{
-			if (auto result = D3D12CreateDevice(bestAdapter.Get(), feature, IID_PPV_ARGS(&outputDevice)); result == S_OK)
-			{
-				return;
-			}
-		}
+		//init DXGI Factory
+		ASSERT_SUCCEEDED(CreateDXGIFactory1(IID_PPV_ARGS(&iDXGIFactory_)));
 
-		factory->EnumWarpAdapter(IID_PPV_ARGS(&bestAdapter));
-		for (auto feature : featureLevels)
-		{
-			if (auto result = D3D12CreateDevice(bestAdapter.Get(), feature, IID_PPV_ARGS(&outputDevice)); result == S_OK)
-			{
-				return;
-			}
-		}
-	};
-	//init DXGI Factory
-	ASSERT_SUCCEEDED(CreateDXGIFactory1(IID_PPV_ARGS(&iDXGIFactory_)));
+		createDeviceWithBestAdapter(iDXGIFactory_, device_);
+		ASSERT(device_ != nullptr);
+	}
 
-	createDeviceWithBestAdapter(iDXGIFactory_, device_);
-	ASSERT(device_ != nullptr);
+	//Create Command Objects
+	{
+		auto commandListType = D3D12_COMMAND_LIST_TYPE::D3D12_COMMAND_LIST_TYPE_DIRECT;
+		HRESULT result;
+		ASSERT_SUCCEEDED(device_->CreateCommandAllocator(commandListType, IID_PPV_ARGS(&mainCommandAllocator_)));
+		D3D12_COMMAND_QUEUE_DESC queueDesc{};
+		queueDesc.NodeMask = 1;
+		queueDesc.Type = commandListType;
+		ASSERT_SUCCEEDED(device_->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&commandQueue_)));
+		ASSERT_SUCCEEDED(device_->CreateCommandList(0, commandListType, mainCommandAllocator_.Get(), nullptr, IID_PPV_ARGS(&commandList_)));
+		ASSERT_SUCCEEDED(device_->CreateFence(InitialFenceValue, D3D12_FENCE_FLAGS::D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence_)));
+		commandList_->Close();
+	}
 
-	auto commandListType = D3D12_COMMAND_LIST_TYPE::D3D12_COMMAND_LIST_TYPE_DIRECT;
-	HRESULT result;
-	ASSERT_SUCCEEDED(device_->CreateCommandAllocator(commandListType, IID_PPV_ARGS(&mainCommandAllocator_)));
-	D3D12_COMMAND_QUEUE_DESC queueDesc{};
-	queueDesc.NodeMask = 1;
-	queueDesc.Type = commandListType;
-	ASSERT_SUCCEEDED(device_->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&commandQueue_)));
-	ASSERT_SUCCEEDED(device_->CreateCommandList(0, commandListType, mainCommandAllocator_.Get(), nullptr, IID_PPV_ARGS(&commandList_)));
-	ASSERT_SUCCEEDED(device_->CreateFence(InitialFenceValue, D3D12_FENCE_FLAGS::D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence_)));
-	commandList_->Close();
+	//Create Descriptor Heap
+	{
+		D3D12_DESCRIPTOR_HEAP_DESC heapDesc{};
+		heapDesc.NodeMask = 0;
+		heapDesc.NumDescriptors = 2;  //필요하다면 더 만드세요 : ex 거울반사, 그림자 매핑 외
+		heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAGS::D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+		heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE::D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
+		ASSERT_SUCCEEDED(device_->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&descriptorHeapDSV_)));
+		dsvHandleIncrementSize_ = device_->GetDescriptorHandleIncrementSize(heapDesc.Type);
+		descriptorHandleAccesors_.insert(std::make_pair(descriptorHeapDSV_.Get(),
+			DescriptorHandleAccesor(descriptorHeapDSV_.Get(), dsvHandleIncrementSize_)));
 
-	D3D12_DESCRIPTOR_HEAP_DESC heapDesc{};
-	heapDesc.NodeMask = 0;
-	heapDesc.NumDescriptors = 2;  //필요하다면 더 만드세요 : ex 거울반사, 그림자 매핑 외
-	heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAGS::D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-	heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE::D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
-	ASSERT_SUCCEEDED(device_->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&descriptorHeapDSV_)));
-	dsvHandleIncrementSize_ = device_->GetDescriptorHandleIncrementSize(heapDesc.Type);
-	descriptorHandleAccesors_.insert(std::make_pair(descriptorHeapDSV_.Get(), 
-		DescriptorHandleAccesor(descriptorHeapDSV_.Get(), dsvHandleIncrementSize_)));
+		heapDesc.NumDescriptors = SwapChainCount; //필요하다면 더 만드세요. : ex 큐브매핑, 지연 렌더링
+		heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE::D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
+		ASSERT_SUCCEEDED(device_->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&descriptorHeapRTV_)));
+		rtvHandleIncrementSize_ = device_->GetDescriptorHandleIncrementSize(heapDesc.Type);
+		descriptorHandleAccesors_.insert(std::make_pair(descriptorHeapRTV_.Get(),
+			DescriptorHandleAccesor(descriptorHeapRTV_.Get(), rtvHandleIncrementSize_)));
 
-	heapDesc.NumDescriptors = SwapChainCount; //필요하다면 더 만드세요. : ex 큐브매핑, 지연 렌더링
-	heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE::D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
-	ASSERT_SUCCEEDED(device_->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&descriptorHeapRTV_)));
-	rtvHandleIncrementSize_ = device_->GetDescriptorHandleIncrementSize(heapDesc.Type);
-	descriptorHandleAccesors_.insert(std::make_pair(descriptorHeapRTV_.Get(),
-		DescriptorHandleAccesor(descriptorHeapRTV_.Get(), rtvHandleIncrementSize_)));
-
-	heapDesc.NumDescriptors = srvDescriptorHeapSize_;
-	heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE::D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-	heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-	ASSERT_SUCCEEDED(device_->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&descriptorHeapCBVSRVUAV_)));
-	cbvHandleIncrementSize_ = device_->GetDescriptorHandleIncrementSize(heapDesc.Type);
-	descriptorHandleAccesors_.insert(std::make_pair(descriptorHeapCBVSRVUAV_.Get(),
-		DescriptorHandleAccesor(descriptorHeapCBVSRVUAV_.Get(), cbvHandleIncrementSize_)));
-
-	using RootParameter = CD3DX12_ROOT_PARAMETER; //signature 1.0
-	constexpr unsigned NumRootParameter = 10;
-	std::array<RootParameter, NumRootParameter> parameters;
-	parameters[0].InitAsConstantBufferView(0);
-	parameters[1].InitAsConstantBufferView(1);
-	parameters[2].InitAsConstantBufferView(2);
-	parameters[3].InitAsConstantBufferView(3);
-	parameters[4].InitAsShaderResourceView(0, 1);
-	parameters[5].InitAsShaderResourceView(1, 1);
-
-	CD3DX12_DESCRIPTOR_RANGE texTable1(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0);
-	CD3DX12_DESCRIPTOR_RANGE texTable2(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1, 0);
-	CD3DX12_DESCRIPTOR_RANGE texTable3(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 2, 0);
-	CD3DX12_DESCRIPTOR_RANGE texTable4(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 40, 3, 0);
-	parameters[6].InitAsDescriptorTable(1, &texTable1, D3D12_SHADER_VISIBILITY_PIXEL);
-	parameters[7].InitAsDescriptorTable(1, &texTable2, D3D12_SHADER_VISIBILITY_PIXEL);
-	parameters[8].InitAsDescriptorTable(1, &texTable3, D3D12_SHADER_VISIBILITY_PIXEL);
-	parameters[9].InitAsDescriptorTable(1, &texTable4, D3D12_SHADER_VISIBILITY_PIXEL);
-
-	auto staticSamplers = GetStaticSamplers();
+		heapDesc.NumDescriptors = srvDescriptorHeapSize_;
+		heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE::D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+		heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+		ASSERT_SUCCEEDED(device_->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&descriptorHeapCBVSRVUAV_)));
+		cbvHandleIncrementSize_ = device_->GetDescriptorHandleIncrementSize(heapDesc.Type);
+		descriptorHandleAccesors_.insert(std::make_pair(descriptorHeapCBVSRVUAV_.Get(),
+			DescriptorHandleAccesor(descriptorHeapCBVSRVUAV_.Get(), cbvHandleIncrementSize_)));
+	}
 	
-	CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc(NumRootParameter, parameters.data(), staticSamplers.size(), staticSamplers.data(),
-		D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
-	ComPtr<ID3DBlob> pOutBlob, pErrorBlob;
-	ASSERT_SUCCEEDED(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION::D3D_ROOT_SIGNATURE_VERSION_1_0, &pOutBlob, &pErrorBlob));
-	ASSERT_SUCCEEDED(device_->CreateRootSignature(0, pOutBlob->GetBufferPointer(), pOutBlob->GetBufferSize(), IID_PPV_ARGS(&rootSignature1_)));
+	//Create Root Parameter
+	{
+		using RootParameter = CD3DX12_ROOT_PARAMETER; //signature 1.0
+		constexpr unsigned NumRootParameter = 10;
+		std::array<RootParameter, NumRootParameter> parameters;
+		parameters[0].InitAsConstantBufferView(0);
+		parameters[1].InitAsConstantBufferView(1);
+		parameters[2].InitAsConstantBufferView(2);
+		parameters[3].InitAsConstantBufferView(3);
+		parameters[4].InitAsShaderResourceView(0, 1);
+		parameters[5].InitAsShaderResourceView(1, 1);
+
+		CD3DX12_DESCRIPTOR_RANGE texTable1(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0);
+		CD3DX12_DESCRIPTOR_RANGE texTable2(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1, 0);
+		CD3DX12_DESCRIPTOR_RANGE texTable3(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 2, 0);
+		CD3DX12_DESCRIPTOR_RANGE texTable4(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 40, 3, 0);
+		parameters[6].InitAsDescriptorTable(1, &texTable1, D3D12_SHADER_VISIBILITY_PIXEL);
+		parameters[7].InitAsDescriptorTable(1, &texTable2, D3D12_SHADER_VISIBILITY_PIXEL);
+		parameters[8].InitAsDescriptorTable(1, &texTable3, D3D12_SHADER_VISIBILITY_PIXEL);
+		parameters[9].InitAsDescriptorTable(1, &texTable4, D3D12_SHADER_VISIBILITY_PIXEL);
+
+		auto staticSamplers = GetStaticSamplers();
+
+		CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc(NumRootParameter, parameters.data(), staticSamplers.size(), staticSamplers.data(),
+			D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+		ComPtr<ID3DBlob> pOutBlob, pErrorBlob;
+		ASSERT_SUCCEEDED(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION::D3D_ROOT_SIGNATURE_VERSION_1_0, &pOutBlob, &pErrorBlob));
+		ASSERT_SUCCEEDED(device_->CreateRootSignature(0, pOutBlob->GetBufferPointer(), pOutBlob->GetBufferSize(), IID_PPV_ARGS(&rootSignature1_)));
+	}
 
 	auto buildInputElements = [](InputElementsMap& outputMap)
 	{
@@ -170,7 +186,6 @@ void DirectXToy::Startup()
 		outputMap[Shader::TestPS] = CompileShader(L"Shaders/Test.hlsl", nullptr, PS_MAIN, "ps_5_1");
 	};
 
-	using RootSignature = ComPtr<ID3D12RootSignature>;
 	auto buildPSODesc = [](GraphicsPSODescMap& outputMap, RootSignature& rootSignature, ShaderMap& shaderMap, InputElementsMap& inputElementsMap)
 	{
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC staticMesh{};
@@ -397,18 +412,21 @@ void DirectXToy::RenderScene()
 
 	std::vector<std::function<void()>> renderPasses
 	{
-		[this, &currentPassData]() //Sample pass
+		//Sample pass
+		[this, &currentPassData]()
 		{
 
 			// 드로우 콜
 		},
 
-		[this]() //Shadow pass
+		//Shadow pass
+		[this]()
 		{
 
 		},
 
-		[this, &currentPassData]() //Test
+		//Test
+		[this, &currentPassData]()
 		{
 			commandList_->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentSwapChainBuffer(),
 				D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));

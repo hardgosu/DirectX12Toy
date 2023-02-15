@@ -31,6 +31,7 @@ private:
 	using SwapChain = ComPtr<IDXGISwapChain4>;
 	using Device = ComPtr<ID3D12Device>;
 	using CommandQueue = ComPtr<ID3D12CommandQueue>;
+	using RootSignature = ComPtr<ID3D12RootSignature>;
 
 	D3D12_VIEWPORT mainViewport_;
 	D3D12_RECT mainScissor_;
