@@ -1,4 +1,4 @@
-# DirectXToy
+# DirectX12Toy
 Simple is best
 
 DirectX12, Vulkan
