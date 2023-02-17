@@ -454,7 +454,7 @@ public:
 		ID3D12CommandQueue* commandQueue, UINT64& fenceValue, bool sync = true, std::function<void()>&& afterExecution = {}) const;
 
 	void ExecuteCommandList(ID3D12GraphicsCommandList* commandList, ID3D12Fence* fence,
-		ID3D12CommandQueue* commandQueue, UINT64& fenceValue, bool sync = true, std::function<void()> && afterExecution = {}) const;
+		ID3D12CommandQueue* commandQueue, UINT64& fenceValue, bool sync = true, std::function<void()>&& afterExecution = {}) const;
 private:
 	StateMachine subStates_;
 	struct StateHolder
