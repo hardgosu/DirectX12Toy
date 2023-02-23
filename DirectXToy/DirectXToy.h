@@ -497,4 +497,6 @@ private:
 	};
 	UINT8 keyStateBuffer_[256]{};
 	//bool IsKeyDowned(unsigned keyCode) const;
+public:
+	static size_t BitsPerPixel(DXGI_FORMAT fmt);
 };
