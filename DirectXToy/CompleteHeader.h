@@ -11,6 +11,7 @@
 #include <DirectXPackedVector.h>
 #include <DirectXColors.h>
 #include <DirectXCollision.h>
+#include <ppl.h>
 #include <iostream>
 #include <string>
 #include <memory>
