@@ -1,7 +1,7 @@
 #include "CompleteHeader.h"
 #include "DirectXToy.h"
 
-CREATE_APPLICATION(DirectXToy)
+CREATE_APPLICATION(Toy::DirectXToy)
 
 HWND g_hWnd = nullptr;
 uint32_t g_DisplayWidth = 1440;
