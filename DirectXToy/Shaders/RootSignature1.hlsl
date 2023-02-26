@@ -10,7 +10,7 @@ StructuredBuffer<InstanceData> gInstanceData : register(t1, space1);
 Texture2D gShadowMap : register(t0);
 Texture2D gDisplacementMap : register(t1);
 TextureCube gCubeMap : register(t2);
-Texture2D gTextureMap[40] : register(t3);
+Texture2D gTextureMap[4096] : register(t3);
 
 
 //TextureCube gDynamicCubeMap : register(t44);

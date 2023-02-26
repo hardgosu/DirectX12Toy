@@ -10,11 +10,33 @@ static constexpr char DS_MAIN[] = "DSMain";
 
 namespace Toy
 {
-	struct GPUBUffer
-	{
-		GPUBUffer(D3D12_RESOURCE_DESC desc)
-		{
+	ComPtr<ID3D12Resource> CreateDefaultBuffer(
+		ID3D12Device* device,
+		ID3D12GraphicsCommandList* cmdList,
+		const void* initData,
+		UINT64 byteSize,
+		ComPtr<ID3D12Resource>& uploadBuffer,
+		bool flushCommandList = false);
 
+	//TODO : CreateBuffer.
+	ComPtr<ID3D12Resource> CreateAlignedDefaultBuffer(
+		ID3D12Device* device,
+		ID3D12GraphicsCommandList* cmdList,
+		UINT width,
+		UINT height,
+		DXGI_FORMAT format,
+		const void* initData = nullptr,
+		D3D12_RESOURCE_FLAGS flag = D3D12_RESOURCE_FLAGS::D3D12_RESOURCE_FLAG_NONE,
+		bool flushCommandList = false); //TODO : if (flushCommandList)
+}
+
+namespace Toy
+{
+	struct GPUBuffer
+	{
+		GPUBuffer(D3D12_RESOURCE_DESC desc)
+		{
+			
 		}
 
 		UINT8* Map(const D3D12_RANGE* rangeInfo)
@@ -25,30 +47,13 @@ namespace Toy
 		//use UploadBuffer
 		void Unmap()
 		{
-
+			
 		}
-		ComPtr<ID3D12Resource> defaultBuffer_;
+
+		ComPtr<ID3D12Resource> buffer_;
+		ComPtr<ID3D12Resource> toUpload_;
 
 	};
-
-	ComPtr<ID3D12Resource> CreateDefaultBuffer(
-		ID3D12Device* device,
-		ID3D12GraphicsCommandList* cmdList,
-		const void* initData,
-		UINT64 byteSize,
-		ComPtr<ID3D12Resource>& uploadBuffer,
-		bool flushCommandList /*false*/);
-
-	//TODO : CreateBuffer.
-	ComPtr<ID3D12Resource> CreateTexture2D(
-		ID3D12Device* device,
-		ID3D12GraphicsCommandList* cmdList,
-		UINT width,
-		UINT height,
-		DXGI_FORMAT format,
-		const void* initData = nullptr,
-		D3D12_RESOURCE_FLAGS flag = D3D12_RESOURCE_FLAGS::D3D12_RESOURCE_FLAG_NONE,
-		bool flushCommandList = false); //TODO : if (flushCommandList)
 }
 
 namespace Toy
@@ -111,7 +116,7 @@ namespace Toy
 		UINT32 dsvHandleIncrementSize_{};
 		ComPtr<ID3D12DescriptorHeap> descriptorHeapCBVSRVUAV_;
 		UINT32 cbvHandleIncrementSize_{};
-		UINT srvDescriptorHeapSize_{ 256 };
+		UINT srvDescriptorHeapSize_{ 4096 };
 
 		ComPtr<ID3D12RootSignature> rootSignature1_;
 
@@ -172,6 +177,15 @@ namespace Toy
 
 			ComPtr<ID3D12Resource> resource_;
 			ComPtr<ID3D12Resource> uploadHeap_;
+
+			CD3DX12_CPU_DESCRIPTOR_HANDLE descriptorHandle_;
+
+			Texture(ID3D12Device* device, ID3D12GraphicsCommandList* commandList,
+				UINT width, UINT height, DXGI_FORMAT format, void* initData = nullptr);
+			Texture(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, 
+				const std::wstring& filePath);
+			Texture() {};
+
 		};
 		std::map<std::string, Texture> textures_;
 	public:

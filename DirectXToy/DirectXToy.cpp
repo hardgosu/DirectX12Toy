@@ -213,7 +213,7 @@ namespace Toy
 			CD3DX12_DESCRIPTOR_RANGE texTable1(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0);
 			CD3DX12_DESCRIPTOR_RANGE texTable2(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1, 0);
 			CD3DX12_DESCRIPTOR_RANGE texTable3(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 2, 0);
-			CD3DX12_DESCRIPTOR_RANGE texTable4(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 40, 3, 0);
+			CD3DX12_DESCRIPTOR_RANGE texTable4(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 4096, 3, 0);
 			parameters[6].InitAsDescriptorTable(1, &texTable1, D3D12_SHADER_VISIBILITY_PIXEL);
 			parameters[7].InitAsDescriptorTable(1, &texTable2, D3D12_SHADER_VISIBILITY_PIXEL);
 			parameters[8].InitAsDescriptorTable(1, &texTable3, D3D12_SHADER_VISIBILITY_PIXEL);
@@ -488,63 +488,63 @@ namespace Toy
 
 			},
 
-				//Test
-				[this, &currentPassData]()
+			//Test
+			[this, &currentPassData]()
+			{
+				commandList_->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentSwapChainBuffer(),
+					D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
+				commandList_->RSSetViewports(1, &mainViewport_);
+				commandList_->RSSetScissorRects(1, &mainScissor_);
+				auto currentRenderTargetView = descriptorHandleAccesors_[descriptorHeapRTV_.Get()].GetCPUHandle(currentBackBufferIndex_);
+				auto depthStencilView = descriptorHandleAccesors_[descriptorHeapDSV_.Get()].GetCPUHandle(0);
+				commandList_->ClearRenderTargetView(currentRenderTargetView, Colors::LightPink, 0, nullptr);
+				commandList_->ClearDepthStencilView(depthStencilView, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
+				commandList_->OMSetRenderTargets(1, &currentRenderTargetView, true, &depthStencilView);
+
+				//Do Draw Call
+				std::vector <ID3D12DescriptorHeap*> descriptorHeaps
 				{
-					commandList_->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentSwapChainBuffer(),
-						D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
-					commandList_->RSSetViewports(1, &mainViewport_);
-					commandList_->RSSetScissorRects(1, &mainScissor_);
-					auto currentRenderTargetView = descriptorHandleAccesors_[descriptorHeapRTV_.Get()].GetCPUHandle(currentBackBufferIndex_);
-					auto depthStencilView = descriptorHandleAccesors_[descriptorHeapDSV_.Get()].GetCPUHandle(0);
-					commandList_->ClearRenderTargetView(currentRenderTargetView, Colors::LightPink, 0, nullptr);
-					commandList_->ClearDepthStencilView(depthStencilView, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
-					commandList_->OMSetRenderTargets(1, &currentRenderTargetView, true, &depthStencilView);
+					descriptorHeapCBVSRVUAV_.Get(),
+				};
+				commandList_->SetDescriptorHeaps(descriptorHeaps.size(), descriptorHeaps.data());
+				commandList_->SetGraphicsRootSignature(rootSignature1_.Get());
 
-					//Do Draw Call
-					std::vector <ID3D12DescriptorHeap*> descriptorHeaps
-					{
-						descriptorHeapCBVSRVUAV_.Get(),
-					};
-					commandList_->SetDescriptorHeaps(descriptorHeaps.size(), descriptorHeaps.data());
-					commandList_->SetGraphicsRootSignature(rootSignature1_.Get());
-
-					commandList_->SetGraphicsRootConstantBufferView(0, currentPassData.constantBuffer_->Resource()->GetGPUVirtualAddress());
-					//commandList_->SetGraphicsRootConstantBufferView(1,
-					//commandList_->SetGraphicsRootConstantBufferView(2, )
-					//commandList_->SetGraphicsRootConstantBufferView(3, )
-					commandList_->SetGraphicsRootShaderResourceView(4, currentPassData.materialBuffer_->Resource()->GetGPUVirtualAddress());
-					commandList_->SetGraphicsRootShaderResourceView(5, currentPassData.instanceBuffer_->Resource()->GetGPUVirtualAddress());
-					//commandList_->SetGraphicsRootDescriptorTable(6)
-					//commandList_->SetGraphicsRootDescriptorTable(7)
-					commandList_->SetGraphicsRootDescriptorTable(8,
-						descriptorHandleAccesors_[descriptorHeapCBVSRVUAV_.Get()].GetGPUHandle(commonPassData_.cubemapSRVIndex_));
-					commandList_->SetGraphicsRootDescriptorTable(9,
-						descriptorHandleAccesors_[descriptorHeapCBVSRVUAV_.Get()].GetGPUHandle(0));
+				commandList_->SetGraphicsRootConstantBufferView(0, currentPassData.constantBuffer_->Resource()->GetGPUVirtualAddress());
+				//commandList_->SetGraphicsRootConstantBufferView(1,
+				//commandList_->SetGraphicsRootConstantBufferView(2, )
+				//commandList_->SetGraphicsRootConstantBufferView(3, )
+				commandList_->SetGraphicsRootShaderResourceView(4, currentPassData.materialBuffer_->Resource()->GetGPUVirtualAddress());
+				commandList_->SetGraphicsRootShaderResourceView(5, currentPassData.instanceBuffer_->Resource()->GetGPUVirtualAddress());
+				//commandList_->SetGraphicsRootDescriptorTable(6)
+				//commandList_->SetGraphicsRootDescriptorTable(7)
+				commandList_->SetGraphicsRootDescriptorTable(8,
+					descriptorHandleAccesors_[descriptorHeapCBVSRVUAV_.Get()].GetGPUHandle(commonPassData_.cubemapSRVIndex_));
+				commandList_->SetGraphicsRootDescriptorTable(9,
+					descriptorHandleAccesors_[descriptorHeapCBVSRVUAV_.Get()].GetGPUHandle(0));
 
 
-					auto& mesh = renderItems_[0].desc_.mesh_;
-					auto vb = mesh->GetVertexBufferView();
-					auto ib = mesh->GetIndexBufferView();
-					commandList_->SetPipelineState(renderItems_[0].desc_.pso_);
+				auto& mesh = renderItems_[0].desc_.mesh_;
+				auto vb = mesh->GetVertexBufferView();
+				auto ib = mesh->GetIndexBufferView();
+				commandList_->SetPipelineState(renderItems_[0].desc_.pso_);
 
-					commandList_->IASetVertexBuffers(0, 1, &vb);
-					commandList_->IASetPrimitiveTopology(D3D12_PRIMITIVE_TOPOLOGY::D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-					//commandList_->DrawInstanced(3, 1, 0, 0);
+				commandList_->IASetVertexBuffers(0, 1, &vb);
+				commandList_->IASetPrimitiveTopology(D3D12_PRIMITIVE_TOPOLOGY::D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+				//commandList_->DrawInstanced(3, 1, 0, 0);
 
-					if (ib.has_value())
-					{
-						commandList_->IASetIndexBuffer(&ib.value());
-						commandList_->DrawIndexedInstanced(mesh->ibDesc_->indexCount_, 1, mesh->ibDesc_->startIndexLocation_, mesh->startVertexLocation_, 0);
-					}
-					else
-					{
-						commandList_->DrawInstanced(mesh->vertexCount_, 1, mesh->startVertexLocation_, 0);
-					}
+				if (ib.has_value())
+				{
+					commandList_->IASetIndexBuffer(&ib.value());
+					commandList_->DrawIndexedInstanced(mesh->ibDesc_->indexCount_, 1, mesh->ibDesc_->startIndexLocation_, mesh->startVertexLocation_, 0);
+				}
+				else
+				{
+					commandList_->DrawInstanced(mesh->vertexCount_, 1, mesh->startVertexLocation_, 0);
+				}
 
-					commandList_->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentSwapChainBuffer(),
-						D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
-				},
+				commandList_->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentSwapChainBuffer(),
+					D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
+			},
 		};
 		std::for_each(renderPasses.begin(), renderPasses.end(), [this](auto& elem) { elem(); });
 
@@ -698,68 +698,90 @@ namespace Toy
 		ASSERT_SUCCEEDED(allocator->Reset());
 		ASSERT_SUCCEEDED(commandList->Reset(allocator, nullptr));
 
-		std::vector<std::string> texNames =
+		auto version1 = [this]()
 		{
-			"bricksDiffuseMap",
-			"bricksNormalMap",
-			"tileDiffuseMap",
-			"tileNormalMap",
-			"defaultDiffuseMap",
-			"defaultNormalMap",
-			"skyCubeMap",
-		};
+			std::vector<std::string> texNames =
+			{
+				"bricksDiffuseMap",
+				"bricksNormalMap",
+				"tileDiffuseMap",
+				"tileNormalMap",
+				"defaultDiffuseMap",
+				"defaultNormalMap",
+				"skyCubeMap",
+			};
 
-		std::vector<std::wstring> texFilenames =
-		{
-			L"Textures/bricks2.dds",
-			L"Textures/bricks2_nmap.dds",
-			L"Textures/tile.dds",
-			L"Textures/tile_nmap.dds",
-			L"Textures/white1x1.dds",
-			L"Textures/default_nmap.dds",
-			L"Textures/snowcube1024.dds",
-		};
+			std::vector<std::wstring> texFilenames =
+			{
+				L"Textures/bricks2.dds",
+				L"Textures/bricks2.dds",
+				L"Textures/bricks2.dds",
+				L"Textures/bricks2.dds",
+				L"Textures/bricks2.dds",
+				L"Textures/bricks2.dds",
+				L"Textures/bricks2.dds",
+			};
 
-		ASSERT(texFilenames.size() == texNames.size());
-		CD3DX12_CPU_DESCRIPTOR_HANDLE hDescriptor(descriptorHeapCBVSRVUAV_->GetCPUDescriptorHandleForHeapStart());
-		auto srvDescriptorSize = descriptorHandleAccesors_[descriptorHeapCBVSRVUAV_.Get()].handleIncrementSize_;
+			ASSERT(texFilenames.size() == texNames.size());
+			CD3DX12_CPU_DESCRIPTOR_HANDLE hDescriptor(descriptorHeapCBVSRVUAV_->GetCPUDescriptorHandleForHeapStart());
+			auto srvDescriptorSize = descriptorHandleAccesors_[descriptorHeapCBVSRVUAV_.Get()].handleIncrementSize_;
 
-		for (size_t i{}; i < texNames.size(); ++i)
-		{
-			auto& texture = textures_[texNames[i]] = Texture();
-			texture.name_ = texNames[i];
-			texture.filePath_ = texFilenames[i];
-			ASSERT_SUCCEEDED(CreateDDSTextureFromFile12(device_.Get(),
-				commandList_.Get(), texture.filePath_.c_str(),
-				texture.resource_, texture.uploadHeap_));
+			constexpr int size = 500;
+			int number{};
+			for (int j{}; j < size; ++j)
+			{
 
+				for (size_t i{}; i < texNames.size(); ++i)
+				{
+
+					number = j * texNames.size() + i;
+					auto& texture = textures_[texNames[i] + std::to_string(number)] = Texture();
+					texture.name_ = texNames[i];
+					texture.filePath_ = texFilenames[i];
+
+					if (j == size - 1)
+					{
+						texture.filePath_ = L"Textures/snowcube1024.dds";
+					}
+					ASSERT_SUCCEEDED(CreateDDSTextureFromFile12(device_.Get(),
+						commandList_.Get(), texture.filePath_.c_str(),
+						texture.resource_, texture.uploadHeap_));
+
+					D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+					srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+					srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+					srvDesc.Texture2D.MostDetailedMip = 0;
+					srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+					srvDesc.Format = texture.resource_->GetDesc().Format;
+					srvDesc.Texture2D.MipLevels = texture.resource_->GetDesc().MipLevels;
+
+					device_->CreateShaderResourceView(texture.resource_.Get(), &srvDesc, hDescriptor);
+
+					// next descriptor
+					hDescriptor.Offset(1, srvDescriptorSize);
+				}
+			}
+
+			commonPassData_.cubemapSRVIndex_ = texNames.size() * size;
+
+			auto& skyCubeMap = textures_["skyCubeMap" + std::to_string(number)].resource_;
 			D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 			srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-			srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+			srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
 			srvDesc.Texture2D.MostDetailedMip = 0;
 			srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
-			srvDesc.Format = texture.resource_->GetDesc().Format;
-			srvDesc.Texture2D.MipLevels = texture.resource_->GetDesc().MipLevels;
+			srvDesc.TextureCube.MostDetailedMip = 0;
+			srvDesc.TextureCube.MipLevels = skyCubeMap->GetDesc().MipLevels;
+			srvDesc.TextureCube.ResourceMinLODClamp = 0.0f;
+			srvDesc.Format = skyCubeMap->GetDesc().Format;
+			device_->CreateShaderResourceView(skyCubeMap.Get(), &srvDesc, hDescriptor);
+		};
+		version1();
 
-			device_->CreateShaderResourceView(texture.resource_.Get(), &srvDesc, hDescriptor);
+		auto version2 = [this]()
+		{
 
-			// next descriptor
-			hDescriptor.Offset(1, srvDescriptorSize);
-		}
-
-		commonPassData_.cubemapSRVIndex_ = texNames.size();
-
-		auto& skyCubeMap = textures_["skyCubeMap"].resource_;
-		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
-		srvDesc.Texture2D.MostDetailedMip = 0;
-		srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
-		srvDesc.TextureCube.MostDetailedMip = 0;
-		srvDesc.TextureCube.MipLevels = skyCubeMap->GetDesc().MipLevels;
-		srvDesc.TextureCube.ResourceMinLODClamp = 0.0f;
-		srvDesc.Format = skyCubeMap->GetDesc().Format;
-		device_->CreateShaderResourceView(skyCubeMap.Get(), &srvDesc, hDescriptor);
+		};
 
 		ExecuteCommandList(commandList, fence_.Get(), commandQueue_.Get(), mainFenceValue_);
 	}
@@ -1000,6 +1022,40 @@ namespace Toy
 
 namespace Toy
 {
+	DirectXToy::Texture::Texture(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, 
+		UINT width, UINT height, DXGI_FORMAT format, void* initData/* nullptr */)
+	{
+		ComPtr<ID3D12Resource> textureResource;
+
+		auto texDesc = CD3DX12_RESOURCE_DESC::Tex2D(format, width, height);
+		texDesc.MipLevels = 1;
+		
+		ASSERT_SUCCEEDED(device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT), D3D12_HEAP_FLAG_NONE,
+			&texDesc, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&textureResource)));
+
+		D3D12_SUBRESOURCE_DATA texResource;
+		texResource.pData = initData;
+		texResource.RowPitch = width * BitsPerPixel(format) / 8;
+		texResource.SlicePitch = texResource.RowPitch * height;
+
+		ComPtr<ID3D12Resource> uploadBuffer;
+
+		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(textureResource.Get(),
+			D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COPY_DEST));
+		//d3dx12.h 헬퍼
+		UpdateSubresources<1>(commandList, textureResource.Get(), uploadBuffer.Get(), 0, 0, 1, &texResource);
+		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(textureResource.Get(),
+			D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ));
+
+		device->CreateShaderResourceView(textureResource.Get(), nullptr, m_hCpuDescriptorHandle);
+	}
+	DirectXToy::Texture::Texture(const std::wstring& filePath)
+	{
+
+	}
+}
+namespace Toy
+{
 	void DirectXToy::VertexBuffer::Confirm(ID3D12Device* pDevice, ID3D12GraphicsCommandList* pCommandList, bool clearData /*false*/)
 	{
 		defaultVertexBuffer_ = CreateDefaultBuffer(pDevice, pCommandList, cpuVertexBuffer_.get(), vbSize_, uploadVertexBuffer_, clearData);
@@ -1174,7 +1230,7 @@ namespace Toy
 	}
 
 	//TODO : CreateBuffer.
-	ComPtr<ID3D12Resource> CreateTexture2D(
+	ComPtr<ID3D12Resource> CreateAlignedDefaultBuffer(
 		ID3D12Device* device,
 		ID3D12GraphicsCommandList* cmdList,
 		UINT width,
@@ -1184,52 +1240,7 @@ namespace Toy
 		D3D12_RESOURCE_FLAGS flag,
 		bool flushCommandList) //TODO : if (flushCommandList)
 	{
-		ComPtr<ID3D12Resource> defaultBuffer;
-		ComPtr<ID3D12Resource> uploadBuffer;
-
-		auto desc = CD3DX12_RESOURCE_DESC::Tex2D(format, width, height);
-		desc.Flags = flag;
-
-		// 거의 바뀔일이 없는 데이터는 디폴트 힙에 만든다.
-		ASSERT_SUCCEEDED(device->CreateCommittedResource(
-			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
-			D3D12_HEAP_FLAG_NONE,
-			&desc,
-			D3D12_RESOURCE_STATE_COPY_DEST,
-			nullptr,
-			IID_PPV_ARGS(defaultBuffer.GetAddressOf())));
-
-		// 하지만 처음 만들때는 업로드를 위해 업로드 힙이 필요한것이다.
-		ASSERT_SUCCEEDED(device->CreateCommittedResource(
-			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
-			D3D12_HEAP_FLAG_NONE,
-			&desc,
-			D3D12_RESOURCE_STATE_COPY_SOURCE,
-			nullptr,
-			IID_PPV_ARGS(uploadBuffer.GetAddressOf())));
-
-		const UINT64 uploadBufferSize = GetRequiredIntermediateSize(defaultBuffer.Get(), 0, 1);
-
-		// 업로드 버퍼 리소스를 매핑해서 기록하거나 서브리소스 데이터를 서술해서 기록하는 방법
-		// 두가지가 있다. 그중 서브리소스를 활용하는 방법이다.
-		D3D12_SUBRESOURCE_DATA subResourceData = {};
-		subResourceData.pData = initData;
-		subResourceData.RowPitch = byteSize;
-		subResourceData.SlicePitch = subResourceData.RowPitch;
-		// 모든 리소스는 상태전이와 함께 복사든, 상태변경이든지 이루어져야 한다.
-		// 즉, 복사 가능 상태(복사 Destination)가 되어야 복사가 가능한것이다. 복사 이후 원래의 상태 혹은
-		// 아래와 같이 Read상태로 놓는다.
-		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(defaultBuffer.Get(),
-			D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COPY_DEST));
-		//d3dx12.h 헬퍼
-		UpdateSubresources<1>(cmdList, defaultBuffer.Get(), uploadBuffer.Get(), 0, 0, 1, &subResourceData);
-		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(defaultBuffer.Get(),
-			D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ));
-
-		// 참고로 비동기임
-		// 이후의 코드에서 커맨드리스트를 Flush해야 한다.
-
-		return defaultBuffer;
+		return nullptr;
 	}
 
 	ComPtr<ID3D12Resource> CreateDefaultBuffer(
