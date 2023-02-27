@@ -524,24 +524,26 @@ namespace Toy
 				commandList_->SetGraphicsRootDescriptorTable(9,
 					descriptorHandleAccesors_[descriptorHeapCBVSRVUAV_.Get()].GetGPUHandle(0));
 
-
-				auto& mesh = renderItems_[0].desc_.mesh_;
-				auto vb = mesh->GetVertexBufferView();
-				auto ib = mesh->GetIndexBufferView();
-				commandList_->SetPipelineState(renderItems_[0].desc_.pso_);
-
-				commandList_->IASetVertexBuffers(0, 1, &vb);
-				commandList_->IASetPrimitiveTopology(D3D12_PRIMITIVE_TOPOLOGY::D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-				//commandList_->DrawInstanced(3, 1, 0, 0);
-
-				if (ib.has_value())
+				for (const auto& renderItem : renderItems_)
 				{
-					commandList_->IASetIndexBuffer(&ib.value());
-					commandList_->DrawIndexedInstanced(mesh->ibDesc_->indexCount_, 1, mesh->ibDesc_->startIndexLocation_, mesh->startVertexLocation_, 0);
-				}
-				else
-				{
-					commandList_->DrawInstanced(mesh->vertexCount_, 1, mesh->startVertexLocation_, 0);
+					auto& mesh = renderItem.desc_.mesh_;
+					auto vb = mesh->GetVertexBufferView();
+					auto ib = mesh->GetIndexBufferView();
+					commandList_->SetPipelineState(renderItem.desc_.pso_);
+
+					commandList_->IASetVertexBuffers(0, 1, &vb);
+					commandList_->IASetPrimitiveTopology(D3D12_PRIMITIVE_TOPOLOGY::D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+					//commandList_->DrawInstanced(3, 1, 0, 0);
+
+					if (ib.has_value())
+					{
+						commandList_->IASetIndexBuffer(&ib.value());
+						commandList_->DrawIndexedInstanced(mesh->ibDesc_->indexCount_, renderItem.visibleItemCount_, mesh->ibDesc_->startIndexLocation_, mesh->startVertexLocation_, 0);
+					}
+					else
+					{
+						commandList_->DrawInstanced(mesh->vertexCount_, renderItem.visibleItemCount_, mesh->startVertexLocation_, 0);
+					}
 				}
 
 				commandList_->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentSwapChainBuffer(),
@@ -990,8 +992,8 @@ namespace Toy
 		auto& vertexBuffer1 = mainVertexBuffer_;
 
 		GeometryGenerator generator;
-		auto meshData = generator.CreateBox(10.0f, 10.0f, 10.0f, 4);
-		auto meshData2 = generator.CreateTestTriangle();
+		auto meshData = generator.CreateGeosphere(15.0f, 3);
+		auto meshData2 = generator.CreateBox(10.0f, 10.0f, 10.0f, 2);
 
 		struct MeshData
 		{
@@ -1002,7 +1004,7 @@ namespace Toy
 		MeshDataList meshDataList
 		{
 			{"GeoSphere", &meshData },
-			{"Box", &meshData },
+			{"Box", &meshData2 },
 		};
 
 		for (const auto& [meshName, pMeshData] : meshDataList)

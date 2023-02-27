@@ -201,14 +201,12 @@ namespace Toy
 		{
 			//My View
 			UINT vertexByteSize_{};
-			UINT vertexBufferByteSize_{};
 			UINT vertexCount_{};
 			UINT startVertexLocation_{};
 
 			struct IBDesc
 			{
 				DXGI_FORMAT indexFormat_{ DXGI_FORMAT_R16_UINT };
-				UINT indexBufferByteSize_{};
 				UINT indexCount_{};
 				UINT startIndexLocation_{};
 			};
@@ -221,7 +219,7 @@ namespace Toy
 				D3D12_VERTEX_BUFFER_VIEW vbv;
 				vbv.BufferLocation = sourceBuffer_->defaultVertexBuffer_->GetGPUVirtualAddress();
 				vbv.StrideInBytes = vertexByteSize_;
-				vbv.SizeInBytes = vertexBufferByteSize_;
+				vbv.SizeInBytes = sourceBuffer_->vbSize_;
 
 				return vbv;
 			}
@@ -236,7 +234,7 @@ namespace Toy
 				D3D12_INDEX_BUFFER_VIEW ibv;
 				ibv.BufferLocation = sourceBuffer_->defaultIndexBuffer_->GetGPUVirtualAddress();
 				ibv.Format = ibDesc_->indexFormat_;
-				ibv.SizeInBytes = ibDesc_->indexBufferByteSize_;
+				ibv.SizeInBytes = sourceBuffer_->ibSize_;
 
 				return { ibv };
 			}
@@ -285,7 +283,6 @@ namespace Toy
 				Mesh ret;
 				ret.startVertexLocation_ = totalVertexCount_;
 				ret.vertexByteSize_ = sizeof(Vertex);
-				ret.vertexBufferByteSize_ = byteSizeVB;
 				ret.vertexCount_ = vertices.size();
 
 				totalVertexCount_ += vertices.size();
@@ -301,7 +298,6 @@ namespace Toy
 
 					ret.ibDesc_.emplace();
 					ret.ibDesc_->startIndexLocation_ = totalIndexCount_;
-					ret.ibDesc_->indexBufferByteSize_ = byteSizeIB;
 					ret.ibDesc_->indexCount_ = indices2.size();
 
 					totalIndexCount_ += indices2.size();
@@ -377,7 +373,7 @@ namespace Toy
 			XMFLOAT2 renderTargetSize_{ 0.0f, 0.0f };
 			XMFLOAT2 inverseRenderTargetSize_{ 0.0f, 0.0f };
 		};
-
+	public:
 		struct InstancingRenderItem
 		{
 			struct Desc
@@ -396,6 +392,7 @@ namespace Toy
 				ASSERT(desc_.mesh_ != nullptr);
 				ASSERT(desc_.instanceBufferCount_ >= 0);
 				cpuInstanceBuffer_.resize(desc_.instanceBufferCount_);
+				visibleItemCount_ = desc_.instanceBufferCount_;
 			}
 		};
 		std::vector<InstancingRenderItem> renderItems_;
