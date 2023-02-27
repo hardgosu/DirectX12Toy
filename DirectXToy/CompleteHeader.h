@@ -35,6 +35,7 @@
 #include "Independent/MathHelper.h"
 #include "Independent/UploadBuffer.h"
 #include "Independent/StateMachine.h"
+#include "Independent/DefaultBuffer.h"
 #include "Utility.h"
 
 #pragma comment(lib,"d3dcompiler.lib")

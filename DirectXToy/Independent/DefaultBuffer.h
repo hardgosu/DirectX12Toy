@@ -172,33 +172,33 @@ public:
 	{
 		auto bufferDesc = CD3DX12_RESOURCE_DESC::Tex2D(format, width, height);
 		bufferDesc.MipLevels = 1;
-		bufferDesc.Flags = flag
+		bufferDesc.Flags = flag;
 
 		auto elemSize = BitsPerPixel(format) / 8;
 		assert(elemSize == sizeof(T));
 		elemSize_ = elemSize;
 		auto byteSize = width * height * elemSize;
 
-		ASSERT_SUCCEEDED(device->CreateCommittedResource(
+		assert(device->CreateCommittedResource(
 			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
 			D3D12_HEAP_FLAG_NONE,
 			&bufferDesc,
 			D3D12_RESOURCE_STATE_COMMON,
 			nullptr,
-			IID_PPV_ARGS(defaultBuffer_.GetAddressOf())));
+			IID_PPV_ARGS(defaultBuffer_.GetAddressOf())) == S_OK);
 
 		assert(initData.empty() == false);
 
 		UINT numSubresources = bufferDesc.DepthOrArraySize * bufferDesc.MipLevels;
 		UINT64 uploadBufferSize = GetRequiredIntermediateSize(defaultBuffer_.Get(), 0, numSubresources);
 
-		ASSERT_SUCCEEDED(device->CreateCommittedResource(
+		assert(device->CreateCommittedResource(
 			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
 			D3D12_HEAP_FLAG_NONE,
 			&CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize),
 			D3D12_RESOURCE_STATE_GENERIC_READ,
 			nullptr,
-			IID_PPV_ARGS(uploadBuffer_.GetAddressOf())));
+			IID_PPV_ARGS(uploadBuffer_.GetAddressOf())) == S_OK);
 
 		D3D12_SUBRESOURCE_DATA subResourceData = {};
 		subResourceData.pData = initData.data();
@@ -217,18 +217,67 @@ public:
 		}
 	}
 
+	DefaultBuffer(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, UINT dataSize, const std::vector<T>& initData, 
+		D3D12_RESOURCE_FLAGS flag = D3D12_RESOURCE_FLAGS::D3D12_RESOURCE_FLAG_NONE, std::function<void()>&& flushFunction = {})
+		: width_{ dataSize }, height_{ 1 }, format_{ DXGI_FORMAT_UNKNOWN }, commandList_{ commandList }
+	{
+		auto bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(dataSize);
+		bufferDesc.Flags = flag;
+
+		assert(initData.empty() == false);
+		assert(dataSize == sizeof(T) * initData.size());
+		elemSize_ = sizeof(T);
+
+		assert(device->CreateCommittedResource(
+			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+			D3D12_HEAP_FLAG_NONE,
+			&bufferDesc,
+			D3D12_RESOURCE_STATE_COMMON,
+			nullptr,
+			IID_PPV_ARGS(defaultBuffer_.GetAddressOf())) == S_OK);
+
+
+		UINT numSubresources = 1;
+		UINT64 uploadBufferSize = GetRequiredIntermediateSize(defaultBuffer_.Get(), 0, numSubresources);
+
+		assert(device->CreateCommittedResource(
+			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+			D3D12_HEAP_FLAG_NONE,
+			&CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize),
+			D3D12_RESOURCE_STATE_GENERIC_READ,
+			nullptr,
+			IID_PPV_ARGS(uploadBuffer_.GetAddressOf())) == S_OK);
+
+		D3D12_SUBRESOURCE_DATA subResourceData = {};
+		subResourceData.pData = initData.data();
+		subResourceData.RowPitch = width_ * elemSize;
+		subResourceData.SlicePitch = dataSize;
+
+		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(defaultBuffer_.Get(),
+			D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COPY_DEST));
+		UpdateSubresources(commandList, defaultBuffer_.Get(), uploadBuffer_.Get(), 0, 0, 1, &subResourceData);
+		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(defaultBuffer_.Get(),
+			D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ));
+
+		if (flushFunction != nullptr)
+		{
+			flushFunction();
+		}
+	}
+
 	//TODO : 특정 영역만 upload. 근데 굳이?
-	HRESULT Upload(void* data)
+	//솔직히 텍스처가 아닐때 아래와같은짓을 할꺼면 UploadBuffer를 써라..
+	void Upload(void* data)
 	{
 		D3D12_SUBRESOURCE_DATA subResourceData = {};
 		subResourceData.pData = data;
 		subResourceData.RowPitch = width_ * elemSize_;
 		subResourceData.SlicePitch = subResourceData.RowPitch * height_;
 
-		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(defaultBuffer_.Get(),
-			D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COPY_DEST));
-		UpdateSubresources(commandList, defaultBuffer_.Get(), uploadBuffer_.Get(), 0, 0, 1, &subResourceData);
-		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(defaultBuffer_.Get(),
+		commandList_->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(defaultBuffer_.Get(),
+			D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_COPY_DEST));
+		UpdateSubresources(commandList_, defaultBuffer_.Get(), uploadBuffer_.Get(), 0, 0, 1, &subResourceData);
+		commandList_->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(defaultBuffer_.Get(),
 			D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ));
 	}
 
