@@ -156,6 +156,7 @@
     <ClInclude Include="CompleteHeader.h" />
     <ClInclude Include="Independent\d3dx12.h" />
     <ClInclude Include="Independent\DDSTextureLoader.h" />
+    <ClInclude Include="Independent\DefaultBuffer.h" />
     <ClInclude Include="Independent\StateMachine.h" />
     <ClInclude Include="Independent\UploadBuffer.h" />
     <ClInclude Include="DirectXToy.h" />
