@@ -22,12 +22,15 @@ namespace Toy
 	ComPtr<ID3D12Resource> CreateAlignedDefaultBuffer(
 		ID3D12Device* device,
 		ID3D12GraphicsCommandList* cmdList,
+		ComPtr<ID3D12Resource>& uploadBuffer,
 		UINT width,
 		UINT height,
 		DXGI_FORMAT format,
 		const void* initData = nullptr,
 		D3D12_RESOURCE_FLAGS flag = D3D12_RESOURCE_FLAGS::D3D12_RESOURCE_FLAG_NONE,
 		bool flushCommandList = false); //TODO : if (flushCommandList)
+
+	size_t BitsPerPixel(DXGI_FORMAT fmt);
 }
 
 namespace Toy
@@ -549,7 +552,5 @@ namespace Toy
 		};
 		UINT8 keyStateBuffer_[256]{};
 		//bool IsKeyDowned(unsigned keyCode) const;
-	public:
-		static size_t BitsPerPixel(DXGI_FORMAT fmt);
 	};
 }

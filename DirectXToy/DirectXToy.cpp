@@ -515,7 +515,8 @@ namespace Toy
 				//commandList_->SetGraphicsRootConstantBufferView(3, )
 				commandList_->SetGraphicsRootShaderResourceView(4, currentPassData.materialBuffer_->Resource()->GetGPUVirtualAddress());
 				commandList_->SetGraphicsRootShaderResourceView(5, currentPassData.instanceBuffer_->Resource()->GetGPUVirtualAddress());
-				//commandList_->SetGraphicsRootDescriptorTable(6)
+				commandList_->SetGraphicsRootDescriptorTable(6,
+					descriptorHandleAccesors_[descriptorHeapCBVSRVUAV_.Get()].GetGPUHandle(0));
 				//commandList_->SetGraphicsRootDescriptorTable(7)
 				commandList_->SetGraphicsRootDescriptorTable(8,
 					descriptorHandleAccesors_[descriptorHeapCBVSRVUAV_.Get()].GetGPUHandle(commonPassData_.cubemapSRVIndex_));
@@ -776,12 +777,88 @@ namespace Toy
 			srvDesc.Format = skyCubeMap->GetDesc().Format;
 			device_->CreateShaderResourceView(skyCubeMap.Get(), &srvDesc, hDescriptor);
 		};
-		version1();
+		//version1();
 
 		auto version2 = [this]()
 		{
+			std::vector<std::string> texNames =
+			{
+				"bricksDiffuseMap",
+				"bricksNormalMap",
+				"tileDiffuseMap",
+				"tileNormalMap",
+				"defaultDiffuseMap",
+				"defaultNormalMap",
+				"skyCubeMap",
+			};
 
+			std::vector<std::wstring> texFilenames =
+			{
+				L"Textures/bricks2.dds",
+				L"Textures/bricks2.dds",
+				L"Textures/bricks2.dds",
+				L"Textures/bricks2.dds",
+				L"Textures/bricks2.dds",
+				L"Textures/bricks2.dds",
+				L"Textures/bricks2.dds",
+			};
+
+			ASSERT(texFilenames.size() == texNames.size());
+			CD3DX12_CPU_DESCRIPTOR_HANDLE hDescriptor(descriptorHeapCBVSRVUAV_->GetCPUDescriptorHandleForHeapStart());
+			auto srvDescriptorSize = descriptorHandleAccesors_[descriptorHeapCBVSRVUAV_.Get()].handleIncrementSize_;
+
+			std::vector<XMFLOAT4> initData(256 * 256, XMFLOAT4(1.0f, 0.1f, 0.4f, 1.0f));
+			auto& texture = textures_["test"] = Texture();
+			auto sampleTexture = CreateAlignedDefaultBuffer(device_.Get(), commandList_.Get(), texture.uploadHeap_, 256, 256, DXGI_FORMAT::DXGI_FORMAT_R32G32B32A32_FLOAT, initData.data());
+
+			texture.resource_ = sampleTexture;
+
+			D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc1 = {};
+			srvDesc1.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+			srvDesc1.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+			srvDesc1.Texture2D.MostDetailedMip = 0;
+			srvDesc1.Texture2D.ResourceMinLODClamp = 0.0f;
+			srvDesc1.Format = texture.resource_->GetDesc().Format;
+			srvDesc1.Texture2D.MipLevels = texture.resource_->GetDesc().MipLevels;
+
+			device_->CreateShaderResourceView(texture.resource_.Get(), &srvDesc1, hDescriptor);
+			hDescriptor.Offset(1, srvDescriptorSize);
+
+			auto& texture2 = textures_["test2"] = Texture();
+
+			texture2.filePath_ = L"Textures/bricks2.dds";
+
+			ASSERT_SUCCEEDED(CreateDDSTextureFromFile12(device_.Get(),
+				commandList_.Get(), texture2.filePath_.c_str(),
+				texture2.resource_, texture2.uploadHeap_));
+
+			srvDesc1.Format = texture2.resource_->GetDesc().Format;
+
+			device_->CreateShaderResourceView(texture2.resource_.Get(), &srvDesc1, hDescriptor);
+			hDescriptor.Offset(1, srvDescriptorSize);
+
+			commonPassData_.cubemapSRVIndex_ = 2;
+
+			auto& skyCubeMap = textures_["skyCubeMap"].resource_;
+
+			textures_["skyCubeMap"].filePath_ = L"Textures/snowcube1024.dds";
+
+			ASSERT_SUCCEEDED(CreateDDSTextureFromFile12(device_.Get(),
+				commandList_.Get(), textures_["skyCubeMap"].filePath_.c_str(),
+				textures_["skyCubeMap"].resource_, textures_["skyCubeMap"].uploadHeap_));
+
+			D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+			srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+			srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
+			srvDesc.Texture2D.MostDetailedMip = 0;
+			srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+			srvDesc.TextureCube.MostDetailedMip = 0;
+			srvDesc.TextureCube.MipLevels = skyCubeMap->GetDesc().MipLevels;
+			srvDesc.TextureCube.ResourceMinLODClamp = 0.0f;
+			srvDesc.Format = skyCubeMap->GetDesc().Format;
+			device_->CreateShaderResourceView(skyCubeMap.Get(), &srvDesc, hDescriptor);
 		};
+		version2();
 
 		ExecuteCommandList(commandList, fence_.Get(), commandQueue_.Get(), mainFenceValue_);
 	}
@@ -1022,40 +1099,6 @@ namespace Toy
 
 namespace Toy
 {
-	DirectXToy::Texture::Texture(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, 
-		UINT width, UINT height, DXGI_FORMAT format, void* initData/* nullptr */)
-	{
-		ComPtr<ID3D12Resource> textureResource;
-
-		auto texDesc = CD3DX12_RESOURCE_DESC::Tex2D(format, width, height);
-		texDesc.MipLevels = 1;
-		
-		ASSERT_SUCCEEDED(device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT), D3D12_HEAP_FLAG_NONE,
-			&texDesc, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&textureResource)));
-
-		D3D12_SUBRESOURCE_DATA texResource;
-		texResource.pData = initData;
-		texResource.RowPitch = width * BitsPerPixel(format) / 8;
-		texResource.SlicePitch = texResource.RowPitch * height;
-
-		ComPtr<ID3D12Resource> uploadBuffer;
-
-		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(textureResource.Get(),
-			D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COPY_DEST));
-		//d3dx12.h 헬퍼
-		UpdateSubresources<1>(commandList, textureResource.Get(), uploadBuffer.Get(), 0, 0, 1, &texResource);
-		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(textureResource.Get(),
-			D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ));
-
-		device->CreateShaderResourceView(textureResource.Get(), nullptr, m_hCpuDescriptorHandle);
-	}
-	DirectXToy::Texture::Texture(const std::wstring& filePath)
-	{
-
-	}
-}
-namespace Toy
-{
 	void DirectXToy::VertexBuffer::Confirm(ID3D12Device* pDevice, ID3D12GraphicsCommandList* pCommandList, bool clearData /*false*/)
 	{
 		defaultVertexBuffer_ = CreateDefaultBuffer(pDevice, pCommandList, cpuVertexBuffer_.get(), vbSize_, uploadVertexBuffer_, clearData);
@@ -1083,7 +1126,7 @@ namespace Toy
 
 namespace Toy
 {
-	size_t DirectXToy::BitsPerPixel(DXGI_FORMAT fmt)
+	size_t BitsPerPixel(DXGI_FORMAT fmt)
 	{
 		switch (fmt)
 		{
@@ -1233,14 +1276,55 @@ namespace Toy
 	ComPtr<ID3D12Resource> CreateAlignedDefaultBuffer(
 		ID3D12Device* device,
 		ID3D12GraphicsCommandList* cmdList,
+		ComPtr<ID3D12Resource>& uploadBuffer, //uploadBuffer는 명령 flush 전에 살아있어야 한다.
 		UINT width,
 		UINT height,
 		DXGI_FORMAT format,
-		const void* initData,
+		const void* initData /* nullptr */,
 		D3D12_RESOURCE_FLAGS flag,
 		bool flushCommandList) //TODO : if (flushCommandList)
 	{
-		return nullptr;
+		ComPtr<ID3D12Resource> defaultBuffer;
+		auto byteSize = width * height * BitsPerPixel(format) / 8;
+		auto texDesc = CD3DX12_RESOURCE_DESC::Tex2D(format, width, height);
+		texDesc.MipLevels = 1;
+		texDesc.Flags = flag;
+
+		ASSERT_SUCCEEDED(device->CreateCommittedResource(
+			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+			D3D12_HEAP_FLAG_NONE,
+			&texDesc,
+			D3D12_RESOURCE_STATE_COMMON,
+			nullptr,
+			IID_PPV_ARGS(defaultBuffer.GetAddressOf())));
+
+		if (initData != nullptr)
+		{
+			UINT numSubresources = texDesc.DepthOrArraySize * texDesc.MipLevels;
+			UINT64 uploadBufferSize = GetRequiredIntermediateSize(defaultBuffer.Get(), 0, numSubresources);
+
+			ASSERT_SUCCEEDED(device->CreateCommittedResource(
+				&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+				D3D12_HEAP_FLAG_NONE,
+				&CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize),
+				D3D12_RESOURCE_STATE_GENERIC_READ,
+				nullptr,
+				IID_PPV_ARGS(uploadBuffer.GetAddressOf())));
+
+			
+			D3D12_SUBRESOURCE_DATA subResourceData = {};
+			subResourceData.pData = initData;
+			subResourceData.RowPitch = width * BitsPerPixel(format) / 8;
+			subResourceData.SlicePitch = byteSize;
+			
+			cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(defaultBuffer.Get(),
+				D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COPY_DEST));
+			UpdateSubresources<1>(cmdList, defaultBuffer.Get(), uploadBuffer.Get(), 0, 0, 1, &subResourceData);
+			cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(defaultBuffer.Get(),
+				D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ));
+		}
+
+		return defaultBuffer;
 	}
 
 	ComPtr<ID3D12Resource> CreateDefaultBuffer(
