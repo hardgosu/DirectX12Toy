@@ -7,7 +7,7 @@ static constexpr char GS_MAIN[] = "GSMain";
 static constexpr char HS_MAIN[] = "HSMain";
 static constexpr char DS_MAIN[] = "DSMain";
 
-
+//old
 namespace Toy
 {
 	ComPtr<ID3D12Resource> CreateDefaultBuffer(
