@@ -35,32 +35,6 @@ namespace Toy
 
 namespace Toy
 {
-	struct GPUBuffer
-	{
-		GPUBuffer(D3D12_RESOURCE_DESC desc)
-		{
-			
-		}
-
-		UINT8* Map(const D3D12_RANGE* rangeInfo)
-		{
-			
-		}
-
-		//use UploadBuffer
-		void Unmap()
-		{
-			
-		}
-
-		ComPtr<ID3D12Resource> buffer_;
-		ComPtr<ID3D12Resource> toUpload_;
-
-	};
-}
-
-namespace Toy
-{
 	class DirectXToy : public IGameApp
 	{
 	public:
@@ -425,7 +399,7 @@ namespace Toy
 			}
 		};
 		std::vector<InstancingRenderItem> renderItems_;
-
+	public:
 		struct PassData //FR
 		{
 			std::unique_ptr<UploadBuffer<Material>> materialBuffer_;
@@ -435,6 +409,10 @@ namespace Toy
 			ComPtr<ID3D12CommandAllocator> commandAllocator_;
 			UINT64 fence_{};
 		};
+		static constexpr unsigned NumFrameResource = 3;
+		unsigned currentPassDataIndex_{ 0 };
+		std::array<PassData, NumFrameResource> passData_;
+
 		struct CommonPassData
 		{
 			UINT cubemapSRVIndex_{ 0 };
@@ -443,9 +421,6 @@ namespace Toy
 		};
 		CommonPassData commonPassData_;
 
-		static constexpr unsigned NumFrameResource = 3;
-		unsigned currentPassDataIndex_{ 0 };
-		std::array<PassData, NumFrameResource> passData_;
 	public:
 		struct Camera
 		{
