@@ -447,6 +447,7 @@ namespace Toy
 					materialData.normalMapIndex_ = 1;
 					currentPassData.materialBuffer_->CopyData(0, materialData);
 				}
+
 				//const Material& forTest = *reinterpret_cast<Material*>(currentPassData.materialBuffer_->pMappedData_);
 				//ASSERT(false);
 			}
@@ -491,6 +492,33 @@ namespace Toy
 			//Test
 			[this, &currentPassData]()
 			{
+				{
+					static std::vector<XMFLOAT4> initData2(64 * 64, XMFLOAT4(0.0f, 0.6f, 0.2f, 1.0f));
+
+					std::for_each(initData2.begin(), initData2.end(), [this](auto& elem)
+						{
+							elem.x += elapsedTime_;
+							if (elem.x > 1.0f)
+							{
+								elem.x = 0;
+							}
+
+							elem.y += elapsedTime_;
+							if (elem.y > 1.0f)
+							{
+								elem.y = 0;
+							}
+
+							elem.z += elapsedTime_;
+							if (elem.z > 1.0f)
+							{
+								elem.z = 0;
+							}
+						});
+
+					commonPassData_.customTexture_->Upload(initData2.data());
+				}
+
 				commandList_->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentSwapChainBuffer(),
 					D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
 				commandList_->RSSetViewports(1, &mainViewport_);
@@ -807,56 +835,73 @@ namespace Toy
 			CD3DX12_CPU_DESCRIPTOR_HANDLE hDescriptor(descriptorHeapCBVSRVUAV_->GetCPUDescriptorHandleForHeapStart());
 			auto srvDescriptorSize = descriptorHandleAccesors_[descriptorHeapCBVSRVUAV_.Get()].handleIncrementSize_;
 
-			std::vector<XMFLOAT4> initData(256 * 256, XMFLOAT4(1.0f, 0.1f, 0.4f, 1.0f));
-			auto& texture = textures_["test"] = Texture();
-			auto sampleTexture = CreateAlignedDefaultBuffer(device_.Get(), commandList_.Get(), texture.uploadHeap_, 256, 256, DXGI_FORMAT::DXGI_FORMAT_R32G32B32A32_FLOAT, initData.data());
 
-			texture.resource_ = sampleTexture;
+			{
+				std::vector<XMFLOAT4> initData(64 * 64, XMFLOAT4(1.0f, 0.1f, 0.4f, 1.0f));
+				commonPassData_.customTexture_ = std::make_unique<DefaultBuffer<XMFLOAT4>>(device_.Get(), commandList_.Get(), 64, 64,
+					DXGI_FORMAT_R32G32B32A32_FLOAT, initData);
 
-			D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc1 = {};
-			srvDesc1.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-			srvDesc1.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-			srvDesc1.Texture2D.MostDetailedMip = 0;
-			srvDesc1.Texture2D.ResourceMinLODClamp = 0.0f;
-			srvDesc1.Format = texture.resource_->GetDesc().Format;
-			srvDesc1.Texture2D.MipLevels = texture.resource_->GetDesc().MipLevels;
+				std::vector<XMFLOAT4> initData2(64 * 64, XMFLOAT4(0.0f, 0.6f, 0.2f, 1.0f));
 
-			device_->CreateShaderResourceView(texture.resource_.Get(), &srvDesc1, hDescriptor);
-			hDescriptor.Offset(1, srvDescriptorSize);
+				commonPassData_.customTexture_->Upload(initData2.data());
 
-			auto& texture2 = textures_["test2"] = Texture();
+				auto& texture = textures_["test"] = Texture();
+				texture.resource_ = commonPassData_.customTexture_->defaultBuffer_;
 
-			texture2.filePath_ = L"Textures/bricks2.dds";
+				D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc1 = {};
+				srvDesc1.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+				srvDesc1.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+				srvDesc1.Texture2D.MostDetailedMip = 0;
+				srvDesc1.Texture2D.ResourceMinLODClamp = 0.0f;
+				srvDesc1.Format = texture.resource_->GetDesc().Format;
+				srvDesc1.Texture2D.MipLevels = texture.resource_->GetDesc().MipLevels;
 
-			ASSERT_SUCCEEDED(CreateDDSTextureFromFile12(device_.Get(),
-				commandList_.Get(), texture2.filePath_.c_str(),
-				texture2.resource_, texture2.uploadHeap_));
+				device_->CreateShaderResourceView(texture.resource_.Get(), &srvDesc1, hDescriptor);
+				hDescriptor.Offset(1, srvDescriptorSize);
+			}
 
-			srvDesc1.Format = texture2.resource_->GetDesc().Format;
+			{
+				auto& texture2 = textures_["test2"] = Texture();
+				texture2.filePath_ = L"Textures/bricks2.dds";
 
-			device_->CreateShaderResourceView(texture2.resource_.Get(), &srvDesc1, hDescriptor);
-			hDescriptor.Offset(1, srvDescriptorSize);
+				ASSERT_SUCCEEDED(CreateDDSTextureFromFile12(device_.Get(),
+					commandList_.Get(), texture2.filePath_.c_str(),
+					texture2.resource_, texture2.uploadHeap_));
 
-			commonPassData_.cubemapSRVIndex_ = 2;
+				D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc1 = {};
+				srvDesc1.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+				srvDesc1.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+				srvDesc1.Texture2D.MostDetailedMip = 0;
+				srvDesc1.Texture2D.ResourceMinLODClamp = 0.0f;
+				srvDesc1.Format = texture2.resource_->GetDesc().Format;
+				srvDesc1.Texture2D.MipLevels = texture2.resource_->GetDesc().MipLevels;
 
-			auto& skyCubeMap = textures_["skyCubeMap"].resource_;
+				device_->CreateShaderResourceView(texture2.resource_.Get(), &srvDesc1, hDescriptor);
+				hDescriptor.Offset(1, srvDescriptorSize);
+			}
 
-			textures_["skyCubeMap"].filePath_ = L"Textures/snowcube1024.dds";
+			{
+				commonPassData_.cubemapSRVIndex_ = 2;
 
-			ASSERT_SUCCEEDED(CreateDDSTextureFromFile12(device_.Get(),
-				commandList_.Get(), textures_["skyCubeMap"].filePath_.c_str(),
-				textures_["skyCubeMap"].resource_, textures_["skyCubeMap"].uploadHeap_));
+				auto& skyCubeMap = textures_["skyCubeMap"].resource_;
 
-			D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-			srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-			srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
-			srvDesc.Texture2D.MostDetailedMip = 0;
-			srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
-			srvDesc.TextureCube.MostDetailedMip = 0;
-			srvDesc.TextureCube.MipLevels = skyCubeMap->GetDesc().MipLevels;
-			srvDesc.TextureCube.ResourceMinLODClamp = 0.0f;
-			srvDesc.Format = skyCubeMap->GetDesc().Format;
-			device_->CreateShaderResourceView(skyCubeMap.Get(), &srvDesc, hDescriptor);
+				textures_["skyCubeMap"].filePath_ = L"Textures/snowcube1024.dds";
+
+				ASSERT_SUCCEEDED(CreateDDSTextureFromFile12(device_.Get(),
+					commandList_.Get(), textures_["skyCubeMap"].filePath_.c_str(),
+					textures_["skyCubeMap"].resource_, textures_["skyCubeMap"].uploadHeap_));
+
+				D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+				srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+				srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
+				srvDesc.Texture2D.MostDetailedMip = 0;
+				srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+				srvDesc.TextureCube.MostDetailedMip = 0;
+				srvDesc.TextureCube.MipLevels = skyCubeMap->GetDesc().MipLevels;
+				srvDesc.TextureCube.ResourceMinLODClamp = 0.0f;
+				srvDesc.Format = skyCubeMap->GetDesc().Format;
+				device_->CreateShaderResourceView(skyCubeMap.Get(), &srvDesc, hDescriptor);
+			}
 		};
 		version2();
 

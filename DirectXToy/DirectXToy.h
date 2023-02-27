@@ -439,6 +439,7 @@ namespace Toy
 		{
 			UINT cubemapSRVIndex_{ 0 };
 			UINT shadowmapSRVIndex_{ 0 };
+			std::unique_ptr<DefaultBuffer<XMFLOAT4>> customTexture_;
 		};
 		CommonPassData commonPassData_;
 
