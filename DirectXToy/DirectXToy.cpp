@@ -621,7 +621,7 @@ namespace Toy
 					D3D12_COMMAND_LIST_TYPE_DIRECT,
 					IID_PPV_ARGS(elem.commandAllocator_.GetAddressOf()));
 
-				elem.instanceBuffer_ = std::make_unique<UploadBuffer<InstanceData>>(device_.Get(), InstanceBufferSize * NumRenderItems, true);
+				elem.instanceBuffer_ = std::make_unique<UploadBuffer<InstanceData>>(device_.Get(), InstanceBufferSize * NumRenderItems, false);
 				elem.materialBuffer_ = std::make_unique<UploadBuffer<Material>>(device_.Get(), materialMapCPU_.size(), false);
 				elem.constantBuffer_ = std::make_unique<UploadBuffer<ConstantBuffer1>>(device_.Get(), 1, true);
 			});

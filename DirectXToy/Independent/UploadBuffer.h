@@ -24,9 +24,9 @@ public:
 		// } D3D12_CONSTANT_BUFFER_VIEW_DESC;
 		if (isConstantBuffer)
 		{
-			constexpr unsigned MaxConstantBufferSize = 65536;
+			//constexpr unsigned MaxConstantBufferSize = 65536;
 			elementByteSize_ = CalcConstantBufferByteSize(sizeof(T));
-			assert(elementByteSize_ * elementCount <= MaxConstantBufferSize = 65536);
+			//assert(elementByteSize_ * elementCount <= MaxConstantBufferSize = 65536);
 		}
 
 		auto hResult = device->CreateCommittedResource(

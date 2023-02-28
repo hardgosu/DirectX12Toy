@@ -340,8 +340,8 @@ namespace Toy
 		{
 			XMFLOAT4X4 worldMatrix_ = MathHelper::Identity4x4();
 			XMFLOAT4X4 texTransform_ = MathHelper::Identity4x4();
-			XMFLOAT4X4 materialTransform_ = MathHelper::Identity4x4();
-			XMFLOAT4X4 finalTransform[MaxBoneMatrix];
+			//XMFLOAT4X4 materialTransform_ = MathHelper::Identity4x4();
+			//XMFLOAT4X4 finalTransform[MaxBoneMatrix];
 			UINT materialIndex_{};
 			UINT pad_{};
 			UINT pad2_{};
