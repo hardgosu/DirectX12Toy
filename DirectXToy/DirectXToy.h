@@ -335,10 +335,13 @@ namespace Toy
 		using MaterialMap = std::map<MaterialKind, Material>;
 		MaterialMap materialMapCPU_;
 
+		static constexpr unsigned MaxBoneMatrix = 96; //평균적으로 뼈는 20~30개정도면 충분
 		struct InstanceData
 		{
 			XMFLOAT4X4 worldMatrix_ = MathHelper::Identity4x4();
 			XMFLOAT4X4 texTransform_ = MathHelper::Identity4x4();
+			XMFLOAT4X4 materialTransform_ = MathHelper::Identity4x4();
+			XMFLOAT4X4 finalTransform[MaxBoneMatrix];
 			UINT materialIndex_{};
 			UINT pad_{};
 			UINT pad2_{};
@@ -354,7 +357,7 @@ namespace Toy
 			XMFLOAT3 position_{ 0.0f, 0.0f, 0.0f };			// point/spot light only
 			float spotPower_{ 64.0f };						// spot light only
 		};
-
+	public:
 		static constexpr unsigned MaxLights = 3;
 
 		struct ConstantBuffer1

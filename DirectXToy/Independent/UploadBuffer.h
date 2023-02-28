@@ -23,7 +23,11 @@ public:
 		// UINT   SizeInBytes;   // multiple of 256
 		// } D3D12_CONSTANT_BUFFER_VIEW_DESC;
 		if (isConstantBuffer)
+		{
+			constexpr unsigned MaxConstantBufferSize = 65536;
 			elementByteSize_ = CalcConstantBufferByteSize(sizeof(T));
+			assert(elementByteSize_ * elementCount <= MaxConstantBufferSize = 65536);
+		}
 
 		auto hResult = device->CreateCommittedResource(
 			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
