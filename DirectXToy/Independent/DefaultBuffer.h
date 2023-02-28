@@ -170,14 +170,15 @@ public:
 		std::function<void()>&& flushFunction = {}) 
 		: width_{ width }, height_{ height }, format_{ format }, commandList_{ commandList }
 	{
+		auto elemSize = BitsPerPixel(format) / 8;
+		assert(elemSize == sizeof(T));
+		assert(initData.empty() == false);
+
+		elemSize_ = elemSize;
+
 		auto bufferDesc = CD3DX12_RESOURCE_DESC::Tex2D(format, width, height);
 		bufferDesc.MipLevels = 1;
 		bufferDesc.Flags = flag;
-
-		auto elemSize = BitsPerPixel(format) / 8;
-		assert(elemSize == sizeof(T));
-		elemSize_ = elemSize;
-		auto byteSize = width * height * elemSize;
 
 		assert(device->CreateCommittedResource(
 			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
@@ -186,8 +187,6 @@ public:
 			D3D12_RESOURCE_STATE_COMMON,
 			nullptr,
 			IID_PPV_ARGS(defaultBuffer_.GetAddressOf())) == S_OK);
-
-		assert(initData.empty() == false);
 
 		UINT numSubresources = bufferDesc.DepthOrArraySize * bufferDesc.MipLevels;
 		UINT64 uploadBufferSize = GetRequiredIntermediateSize(defaultBuffer_.Get(), 0, numSubresources);
@@ -203,7 +202,7 @@ public:
 		D3D12_SUBRESOURCE_DATA subResourceData = {};
 		subResourceData.pData = initData.data();
 		subResourceData.RowPitch = width * elemSize;
-		subResourceData.SlicePitch = byteSize;
+		subResourceData.SlicePitch = subResourceData.RowPitch * height;
 
 		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(defaultBuffer_.Get(),
 			D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COPY_DEST));
@@ -219,14 +218,16 @@ public:
 
 	DefaultBuffer(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, UINT dataSize, const std::vector<T>& initData, 
 		D3D12_RESOURCE_FLAGS flag = D3D12_RESOURCE_FLAGS::D3D12_RESOURCE_FLAG_NONE, std::function<void()>&& flushFunction = {})
-		: width_{ dataSize }, height_{ 1 }, format_{ DXGI_FORMAT_UNKNOWN }, commandList_{ commandList }
+		: height_{ 1 }, format_{ DXGI_FORMAT_UNKNOWN }, commandList_{ commandList }
 	{
-		auto bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(dataSize);
-		bufferDesc.Flags = flag;
+		elemSize_ = sizeof(T);
+		width_ = initData.size();
 
 		assert(initData.empty() == false);
-		assert(dataSize == sizeof(T) * initData.size());
-		elemSize_ = sizeof(T);
+		assert(dataSize == elemSize_ * initData.size());
+
+		auto bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(dataSize);
+		bufferDesc.Flags = flag;
 
 		assert(device->CreateCommittedResource(
 			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
@@ -251,7 +252,7 @@ public:
 		D3D12_SUBRESOURCE_DATA subResourceData = {};
 		subResourceData.pData = initData.data();
 		subResourceData.RowPitch = width_ * elemSize;
-		subResourceData.SlicePitch = dataSize;
+		subResourceData.SlicePitch = subResourceData.RowPitch;
 
 		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(defaultBuffer_.Get(),
 			D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COPY_DEST));
