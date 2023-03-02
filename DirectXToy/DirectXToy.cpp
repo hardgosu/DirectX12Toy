@@ -779,6 +779,10 @@ namespace Toy
 			srvDesc.TextureCube.ResourceMinLODClamp = 0.0f;
 			srvDesc.Format = skyCubeMap->GetDesc().Format;
 			device_->CreateShaderResourceView(skyCubeMap.Get(), &srvDesc, hDescriptor);
+
+			hDescriptor.Offset(1, srvDescriptorSize);
+
+			descriptorHandleAccesors_[descriptorHeapCBVSRVUAV_.Get()].SaveLastHandle(hDescriptor);
 		};
 		//version1();
 
@@ -876,6 +880,7 @@ namespace Toy
 				srvDesc.TextureCube.ResourceMinLODClamp = 0.0f;
 				srvDesc.Format = skyCubeMap->GetDesc().Format;
 				device_->CreateShaderResourceView(skyCubeMap.Get(), &srvDesc, hDescriptor);
+				hDescriptor.Offset(1, srvDescriptorSize);
 			}
 		};
 		//version2();
@@ -945,6 +950,8 @@ namespace Toy
 			srvDesc.TextureCube.ResourceMinLODClamp = 0.0f;
 			srvDesc.Format = skyCubeMap->GetDesc().Format;
 			device_->CreateShaderResourceView(skyCubeMap.Get(), &srvDesc, hDescriptor);
+
+			hDescriptor.Offset(1, srvDescriptorSize);
 		};
 		version3();
 
@@ -1195,7 +1202,10 @@ namespace Toy
 		defaultIndexBuffer_ = CreateDefaultBuffer(pDevice, pCommandList, cpuIndexBuffer_.get(), ibSize_, uploadIndexBuffer_, clearData);
 		ASSERT(defaultIndexBuffer_ != nullptr);
 	}
+}
 
+namespace Toy
+{
 	CD3DX12_CPU_DESCRIPTOR_HANDLE DirectXToy::DescriptorHandleAccesor::GetCPUHandle(int index) const
 	{
 		auto srv = CD3DX12_CPU_DESCRIPTOR_HANDLE(source_->GetCPUDescriptorHandleForHeapStart());
@@ -1208,6 +1218,34 @@ namespace Toy
 		auto srv = CD3DX12_GPU_DESCRIPTOR_HANDLE(source_->GetGPUDescriptorHandleForHeapStart());
 		srv.Offset(index, handleIncrementSize_);
 		return srv;
+	}
+
+	CD3DX12_GPU_DESCRIPTOR_HANDLE DirectXToy::DescriptorHandleAccesor::GetCurrentAvailableGPUHandle() const
+	{
+		return GetGPUHandle(currentAvailableIndex_);
+	}
+
+	CD3DX12_CPU_DESCRIPTOR_HANDLE DirectXToy::DescriptorHandleAccesor::GetCurrentAvailableCPUHandle() const
+	{
+		return GetCPUHandle(currentAvailableIndex_);
+	}
+
+	void DirectXToy::DescriptorHandleAccesor::SaveLastHandle(const CD3DX12_CPU_DESCRIPTOR_HANDLE& cpuHandle)
+	{
+		auto currentHandle = GetCurrentAvailableCPUHandle();
+		auto ptrDiff = cpuHandle.ptr - currentHandle.ptr;
+		ASSERT(ptrDiff >= 0 && ptrDiff % handleIncrementSize_ == 0);
+
+		currentAvailableIndex_ += (ptrDiff / handleIncrementSize_);
+
+	}
+	void DirectXToy::DescriptorHandleAccesor::SaveLastHandle(const CD3DX12_GPU_DESCRIPTOR_HANDLE& gpuHandle)
+	{
+		auto currentHandle = GetCurrentAvailableGPUHandle();
+		auto ptrDiff = gpuHandle.ptr - currentHandle.ptr;
+		ASSERT(ptrDiff >= 0 && ptrDiff % handleIncrementSize_ == 0);
+
+		currentAvailableIndex_ += (ptrDiff / handleIncrementSize_);
 	}
 }
 

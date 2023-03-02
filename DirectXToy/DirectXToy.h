@@ -82,8 +82,15 @@ namespace Toy
 			CD3DX12_GPU_DESCRIPTOR_HANDLE GetGPUHandle(int index) const;
 			CD3DX12_CPU_DESCRIPTOR_HANDLE GetCPUHandle(int index) const;
 
-			ID3D12DescriptorHeap* source_{ nullptr };
+			CD3DX12_GPU_DESCRIPTOR_HANDLE GetCurrentAvailableGPUHandle() const;
+			CD3DX12_CPU_DESCRIPTOR_HANDLE GetCurrentAvailableCPUHandle() const;
+
+			void SaveLastHandle(const CD3DX12_CPU_DESCRIPTOR_HANDLE& cpuHandle);
+			void SaveLastHandle(const CD3DX12_GPU_DESCRIPTOR_HANDLE& gpuHandle);
+
 			UINT handleIncrementSize_{};
+			ID3D12DescriptorHeap* source_{ nullptr };
+			UINT currentAvailableIndex_{};
 		};
 		std::map<ID3D12DescriptorHeap*, DescriptorHandleAccesor> descriptorHandleAccesors_;
 
