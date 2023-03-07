@@ -63,6 +63,17 @@ public:
 		memcpy(&pMappedData_[elementIndex * elementByteSize_], &data, sizeof(T));
 	}
 
+	void CopyData(const std::vector<T>& datas)
+	{
+		std::memcpy(pMappedData_, datas.data(), sizeof(T) * datas.size());
+	}
+
+	void MoveData(std::vector<T>&& datas)
+	{
+		std::move(datas.begin(), datas.end(), pMappedData_);
+	}
+
+
 	//상수버퍼의 경우 그래픽 하드웨어는 256바이트 정렬된 버퍼를 기대한다.
 	//임의의 바이트 크기를 256배수로 align시켜준다.
 	//300을 넘긴다면 512를 리턴하게된다.
