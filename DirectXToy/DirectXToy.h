@@ -38,7 +38,7 @@ namespace Toy
 	class DirectXToy : public IGameApp
 	{
 	public:
-		DirectXToy(void) : mainVertexBuffer_{ vertexBufferPool_["Main"] }, subVertexBuffer_{ vertexBufferPool_["Sub"] }
+		DirectXToy(void) : mainVertexBuffer_{ vertexBufferPools_["Main"] }, subVertexBuffer_{ vertexBufferPools_["Sub"] }
 		{
 		}
 
@@ -203,7 +203,7 @@ namespace Toy
 		};
 		// skinnedVertex?
 
-		struct VertexBuffer;
+		struct VertexBufferPool;
 		struct Mesh
 		{
 			//My View
@@ -219,7 +219,7 @@ namespace Toy
 			};
 			std::optional<IBDesc> ibDesc_;
 
-			VertexBuffer* sourceBuffer_{ nullptr };
+			VertexBufferPool* sourceBuffer_{ nullptr };
 
 			D3D12_VERTEX_BUFFER_VIEW GetVertexBufferView() const
 			{
@@ -252,7 +252,7 @@ namespace Toy
 		//편의를 위해 VertexBuffer와 VertexBufferView가 1:1 관계라고 가정
 		//원래 1:다 관계
 		//모든 포맷의 정점데이터를 수용할수있다.
-		struct VertexBuffer
+		struct VertexBufferPool
 		{
 			using Byte = UINT8;
 			//64는 임의의 정점 크기
@@ -272,7 +272,7 @@ namespace Toy
 			size_t ibSize_{};
 			UINT totalIndexCount_{};
 
-			VertexBuffer()
+			VertexBufferPool()
 			{
 				cpuVertexBuffer_ = std::make_unique<Byte[]>(ReservedVBSize);
 				cpuIndexBuffer_ = std::make_unique<Byte[]>(ReservedIBSIze);
@@ -315,9 +315,9 @@ namespace Toy
 			}
 			void Confirm(ID3D12Device* pDevice, ID3D12GraphicsCommandList* pCommandList, bool clearData = false);
 		};
-		std::map<std::string, VertexBuffer> vertexBufferPool_; //1~2개정도만 만들면 충분..
-		VertexBuffer& mainVertexBuffer_;
-		VertexBuffer& subVertexBuffer_;
+		std::map<std::string, VertexBufferPool> vertexBufferPools_; //1~2개정도만 만들면 충분..
+		VertexBufferPool& mainVertexBuffer_;
+		VertexBufferPool& subVertexBuffer_;
 	public:
 		void LoadRenderItem();
 

@@ -964,7 +964,7 @@ namespace Toy
 		ASSERT_SUCCEEDED(commandList->Reset(allocator, nullptr));
 
 		//1버퍼는 1메시에 대응하지 않는다.
-		auto buildMesh = [](const GeometryGenerator::MeshData& meshData, VertexBuffer& vertexBuffer)
+		auto buildMesh = [](const GeometryGenerator::MeshData& meshData, VertexBufferPool& vertexBuffer)
 			-> Mesh
 		{
 			std::vector<Vertex> vertexContainer;
@@ -1194,7 +1194,7 @@ namespace Toy
 
 namespace Toy
 {
-	void DirectXToy::VertexBuffer::Confirm(ID3D12Device* pDevice, ID3D12GraphicsCommandList* pCommandList, bool clearData /*false*/)
+	void DirectXToy::VertexBufferPool::Confirm(ID3D12Device* pDevice, ID3D12GraphicsCommandList* pCommandList, bool clearData /*false*/)
 	{
 		defaultVertexBuffer_ = CreateDefaultBuffer(pDevice, pCommandList, cpuVertexBuffer_.get(), vbSize_, uploadVertexBuffer_, clearData);
 		ASSERT(defaultVertexBuffer_ != nullptr);
