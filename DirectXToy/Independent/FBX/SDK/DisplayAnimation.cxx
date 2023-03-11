@@ -11,7 +11,7 @@
 
 #include "DisplayCommon.h"
 #include "DisplayAnimation.h"
-#include "LoadM3d.h"
+//#include "LoadM3d.h"
 
 using namespace DirectX;
 
@@ -68,7 +68,7 @@ void DisplayCurveKeys(char *pHeader, FbxAnimCurve *pfbxAnimationCurve, char *pSu
 		DisplayFloat("", fKeyValue, " ");
     }
 
-	WriteStringToFile("\n");
+	printf_s("\n");
 }
 
 void DisplayChannels(FbxAnimLayer *pfbxAnimationLayer, FbxNode *pfbxNode, int *pnCurveNode, int nTabIndents)

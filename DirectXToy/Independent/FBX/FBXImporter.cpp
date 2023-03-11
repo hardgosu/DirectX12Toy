@@ -19,7 +19,7 @@ void FBXImporter::BuildFBXRenderItem(std::string filePath, OffsetOption offsetOp
 
 	bool bResult = LoadScene(pfbxSdkManager, pfbxScene, lFilePath.Buffer());
 
-	string fileName = filePath.substr(0,filePath.find('.', 0));
+	std::string fileName = filePath.substr(0,filePath.find('.', 0));
 
 
 	std::vector<std::vector<std::vector<FbxAMatrix>>> allKeyFrames;
@@ -50,9 +50,9 @@ void FBXImporter::BuildFBXRenderItem(std::string filePath, OffsetOption offsetOp
 		FbxSystemUnit::m.ConvertScene(pfbxScene);
 
 
-		//WriteStringToFile("<GlobalTimeSettings>\n");
+		//printf_s("<GlobalTimeSettings>\n");
   //      DisplayGlobalTimeSettings(&pfbxScene->GetGlobalSettings());
-		//WriteStringToFile("</GlobalTimeSettings>\n");
+		//printf_s("</GlobalTimeSettings>\n");
 		pfbxScene->FillAnimStackNameArray(memberAnimationClipNameArray);
 		if (displayHierachy.GetSkinnedMeshCount(pfbxScene->GetRootNode(), true))
 		{

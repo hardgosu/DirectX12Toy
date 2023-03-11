@@ -202,14 +202,14 @@ void DisplayHierachy::DisplayPolygonVertexUVs(FbxMesh* pfbxMesh, int nPolygons, 
 						{
 						case FbxGeometryElement::eDirect:
 							//Display2DVector(pfbxElementUV->GetDirectArray().GetAt(nControlPointIndex));
-							vertexBuffer[nControlPointIndex].textureCoordinate.x = pfbxElementUV->GetDirectArray().GetAt(nControlPointIndex).mData[0];
-							vertexBuffer[nControlPointIndex].textureCoordinate.y = pfbxElementUV->GetDirectArray().GetAt(nControlPointIndex).mData[1];
+							vertexBuffer[nControlPointIndex].textureCoordinate_.x = pfbxElementUV->GetDirectArray().GetAt(nControlPointIndex).mData[0];
+							vertexBuffer[nControlPointIndex].textureCoordinate_.y = pfbxElementUV->GetDirectArray().GetAt(nControlPointIndex).mData[1];
 
 							break;
 						case FbxGeometryElement::eIndexToDirect:
 							//Display2DVector(pfbxElementUV->GetDirectArray().GetAt(pfbxElementUV->GetIndexArray().GetAt(nControlPointIndex)));
-							vertexBuffer[nControlPointIndex].textureCoordinate.x = pfbxElementUV->GetDirectArray().GetAt(pfbxElementUV->GetIndexArray().GetAt(nControlPointIndex)).mData[0];
-							vertexBuffer[nControlPointIndex].textureCoordinate.y = pfbxElementUV->GetDirectArray().GetAt(pfbxElementUV->GetIndexArray().GetAt(nControlPointIndex)).mData[1];
+							vertexBuffer[nControlPointIndex].textureCoordinate_.x = pfbxElementUV->GetDirectArray().GetAt(pfbxElementUV->GetIndexArray().GetAt(nControlPointIndex)).mData[0];
+							vertexBuffer[nControlPointIndex].textureCoordinate_.y = pfbxElementUV->GetDirectArray().GetAt(pfbxElementUV->GetIndexArray().GetAt(nControlPointIndex)).mData[1];
 
 							break;
 						default:
@@ -226,8 +226,8 @@ void DisplayHierachy::DisplayPolygonVertexUVs(FbxMesh* pfbxMesh, int nPolygons, 
 							//Display2DVector(pfbxElementUV->GetDirectArray().GetAt(nTextureUVIndex));
 							if (indexBuffer[index] < vertexBuffer.size())
 							{
-								vertexBuffer[indexBuffer[index]].textureCoordinate.x += ((float)pfbxElementUV->GetDirectArray().GetAt(nTextureUVIndex).mData[0]);
-								vertexBuffer[indexBuffer[index]].textureCoordinate.y += (1.0f - (float)pfbxElementUV->GetDirectArray().GetAt(nTextureUVIndex).mData[1]);
+								vertexBuffer[indexBuffer[index]].textureCoordinate_.x += ((float)pfbxElementUV->GetDirectArray().GetAt(nTextureUVIndex).mData[0]);
+								vertexBuffer[indexBuffer[index]].textureCoordinate_.y += (1.0f - (float)pfbxElementUV->GetDirectArray().GetAt(nTextureUVIndex).mData[1]);
 								forAverage[indexBuffer[index]]++;
 								++index;
 							}
@@ -256,8 +256,8 @@ void DisplayHierachy::DisplayPolygonVertexUVs(FbxMesh* pfbxMesh, int nPolygons, 
 	{
 		if (forAverage[i])
 		{
-			vertexBuffer[i].textureCoordinate.x /= (float)forAverage[i];
-			vertexBuffer[i].textureCoordinate.y /= (float)forAverage[i];
+			vertexBuffer[i].textureCoordinate_.x /= (float)forAverage[i];
+			vertexBuffer[i].textureCoordinate_.y /= (float)forAverage[i];
 		}
 	}
 }
@@ -284,18 +284,18 @@ void DisplayHierachy::DisplayPolygonVertexNormals(FbxMesh* pfbxMesh, int nPolygo
 						switch (pfbxElementNormal->GetReferenceMode())
 						{
 						case FbxGeometryElement::eDirect:
-							vertexBuffer[indexBuffer[nVertexID]].normal.x += (float)pfbxElementNormal->GetDirectArray().GetAt(nVertexID)[0];
-							vertexBuffer[indexBuffer[nVertexID]].normal.y += (float)pfbxElementNormal->GetDirectArray().GetAt(nVertexID)[1];
-							vertexBuffer[indexBuffer[nVertexID]].normal.z += (float)pfbxElementNormal->GetDirectArray().GetAt(nVertexID)[2];
+							vertexBuffer[indexBuffer[nVertexID]].normal_.x += (float)pfbxElementNormal->GetDirectArray().GetAt(nVertexID)[0];
+							vertexBuffer[indexBuffer[nVertexID]].normal_.y += (float)pfbxElementNormal->GetDirectArray().GetAt(nVertexID)[1];
+							vertexBuffer[indexBuffer[nVertexID]].normal_.z += (float)pfbxElementNormal->GetDirectArray().GetAt(nVertexID)[2];
 							//Display3DVector(pfbxElementNormal->GetDirectArray().GetAt(nVertexID));
 							break;
 							//#ÁÖÀÇ
 						case FbxGeometryElement::eIndexToDirect:
 							//Display3DVector(pfbxElementNormal->GetDirectArray().GetAt(pfbxElementNormal->GetIndexArray().GetAt(nVertexID)));
 
-							vertexBuffer[indexBuffer[nVertexID]].normal.x += (float)pfbxElementNormal->GetDirectArray().GetAt(pfbxElementNormal->GetIndexArray().GetAt(nVertexID))[0];
-							vertexBuffer[indexBuffer[nVertexID]].normal.y += (float)pfbxElementNormal->GetDirectArray().GetAt(pfbxElementNormal->GetIndexArray().GetAt(nVertexID))[1];
-							vertexBuffer[indexBuffer[nVertexID]].normal.z += (float)pfbxElementNormal->GetDirectArray().GetAt(pfbxElementNormal->GetIndexArray().GetAt(nVertexID))[2];
+							vertexBuffer[indexBuffer[nVertexID]].normal_.x += (float)pfbxElementNormal->GetDirectArray().GetAt(pfbxElementNormal->GetIndexArray().GetAt(nVertexID))[0];
+							vertexBuffer[indexBuffer[nVertexID]].normal_.y += (float)pfbxElementNormal->GetDirectArray().GetAt(pfbxElementNormal->GetIndexArray().GetAt(nVertexID))[1];
+							vertexBuffer[indexBuffer[nVertexID]].normal_.z += (float)pfbxElementNormal->GetDirectArray().GetAt(pfbxElementNormal->GetIndexArray().GetAt(nVertexID))[2];
 							break;
 						default:
 							break;
@@ -329,9 +329,9 @@ void DisplayHierachy::DisplayPolygonVertexTangents(FbxMesh* pfbxMesh, int nPolyg
 						switch (pfbxElementTangent->GetReferenceMode())
 						{
 						case FbxGeometryElement::eDirect:
-							vertexBuffer[indexBuffer[nVertexID]].tangent.x += (float)pfbxElementTangent->GetDirectArray().GetAt(nVertexID)[0];
-							vertexBuffer[indexBuffer[nVertexID]].tangent.y += (float)pfbxElementTangent->GetDirectArray().GetAt(nVertexID)[1];
-							vertexBuffer[indexBuffer[nVertexID]].tangent.z += (float)pfbxElementTangent->GetDirectArray().GetAt(nVertexID)[2];
+							vertexBuffer[indexBuffer[nVertexID]].tangent_.x += (float)pfbxElementTangent->GetDirectArray().GetAt(nVertexID)[0];
+							vertexBuffer[indexBuffer[nVertexID]].tangent_.y += (float)pfbxElementTangent->GetDirectArray().GetAt(nVertexID)[1];
+							vertexBuffer[indexBuffer[nVertexID]].tangent_.z += (float)pfbxElementTangent->GetDirectArray().GetAt(nVertexID)[2];
 
 							break;
 						case FbxGeometryElement::eIndexToDirect:
@@ -394,7 +394,7 @@ void DisplayHierachy::DisplayControlsPoints(FbxMesh* pfbxMesh, int nControlPoint
 		{
 			pfbxvControlPoints[i] = transform.MultT(pfbxvControlPoints[i]);
 		}
-		vertexBuffer[i].position =
+		vertexBuffer[i].position_ =
 		{
 			(float)pfbxvControlPoints[i][0],
 			(float)pfbxvControlPoints[i][1],
@@ -591,14 +591,14 @@ void DisplayHierachy::DisplaySkinDeformations(FbxMesh* pfbxMesh, std::vector<Ski
 
 	for (int i = 0; i < nControlPoints; i++)
 	{
-		vertices[i].boneIndices[0] = pnSkinningIndices[i][0];
-		vertices[i].boneIndices[1] = pnSkinningIndices[i][1];
-		vertices[i].boneIndices[2] = pnSkinningIndices[i][2];
-		vertices[i].boneIndices[3] = pnSkinningIndices[i][3];
+		vertices[i].boneIndices_[0] = pnSkinningIndices[i][0];
+		vertices[i].boneIndices_[1] = pnSkinningIndices[i][1];
+		vertices[i].boneIndices_[2] = pnSkinningIndices[i][2];
+		vertices[i].boneIndices_[3] = pnSkinningIndices[i][3];
 
-		vertices[i].boneWeights.x = pfSkinningWeights[i][0];
-		vertices[i].boneWeights.y = pfSkinningWeights[i][1];
-		vertices[i].boneWeights.z = pfSkinningWeights[i][2];
+		vertices[i].boneWeights_.x = pfSkinningWeights[i][0];
+		vertices[i].boneWeights_.y = pfSkinningWeights[i][1];
+		vertices[i].boneWeights_.z = pfSkinningWeights[i][2];
 	}
 
 
@@ -1008,7 +1008,7 @@ void DisplayHierachy::DisplayCurveKeys(FbxAnimCurve* pfbxAnimationCurve, bool bR
 		//DisplayFloat("", fKeyValue, " ");
 	}
 
-	//WriteStringToFile("\n");
+	//printf_s("\n");
 }
 
 void DisplayHierachy::DisplayChannels(FbxAnimLayer* pfbxAnimationLayer, FbxNode* pfbxNode, int* pnCurveNode)
@@ -1140,7 +1140,7 @@ void DisplayHierachy::GetKeyFrameMatrixGlobalNonSkinned(FbxNode* startNode, std:
 
 		FbxAnimStack* pfbxAnimationStack = scene->GetCurrentAnimationStack();
 
-		string currentClipName = pfbxAnimationStack->GetName();
+		std::string currentClipName = pfbxAnimationStack->GetName();
 
 
 		FbxTakeInfo* takeInfo = scene->GetTakeInfo(FbxString(currentClipName.c_str()));
@@ -1229,7 +1229,7 @@ void DisplayHierachy::GetKeyFrameMatrixGlobal(FbxNode* startNode, const std::vec
 
 		FbxAnimStack* pfbxAnimationStack = scene->GetCurrentAnimationStack();
 
-		string currentClipName = pfbxAnimationStack->GetName();
+		std::string currentClipName = pfbxAnimationStack->GetName();
 
 
 		FbxTakeInfo* takeInfo = scene->GetTakeInfo(FbxString(currentClipName.c_str()));
@@ -1424,7 +1424,7 @@ void DisplayHierachy::GetKeyFrameMatrixLocal(FbxNode* startNode, const std::vect
 
 }
 
-void DisplayHierachy::GetMaterialGroups(FbxNode* startNode, std::vector<std::vector<PrimitiveGroup>>& primitiveGroups, const string fileName)
+void DisplayHierachy::GetMaterialGroups(FbxNode* startNode, std::vector<std::vector<PrimitiveGroup>>& primitiveGroups, const std::string fileName)
 {
 	FbxNodeAttribute* pfbxNodeAttribute = startNode->GetNodeAttribute();
 	if (pfbxNodeAttribute)

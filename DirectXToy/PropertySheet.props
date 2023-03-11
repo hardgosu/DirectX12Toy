@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ImportGroup Label="PropertySheets" />
+  <PropertyGroup Label="UserMacros">
+    <FBXSDKInclude>$(ProjectDir)Independent\FBX\SDK\Submodule\include</FBXSDKInclude>
+    <FBXSDKLib>$(ProjectDir)Independent\FBX\SDK\Submodule\lib\vs2017\x64\debug</FBXSDKLib>
+  </PropertyGroup>
+  <PropertyGroup />
+  <ItemDefinitionGroup />
+  <ItemGroup>
+    <BuildMacro Include="FBXSDKInclude">
+      <Value>$(FBXSDKInclude)</Value>
+    </BuildMacro>
+    <BuildMacro Include="FBXSDKLib">
+      <Value>$(FBXSDKLib)</Value>
+    </BuildMacro>
+  </ItemGroup>
+</Project>

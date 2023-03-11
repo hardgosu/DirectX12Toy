@@ -60,14 +60,14 @@ namespace Toy
 
 					if (rightMouseDown)
 					{
-						constexpr float Speed = 5.0f;
+						constexpr float Speed = 3.0f;
 
 						camera_.Rotate(Camera::Axis::Y, dx * elapsedTime_ * Speed);
 						camera_.Rotate(Camera::Axis::X, dy * elapsedTime_ * Speed);
 					}
 					else if (middleMouseDown)
 					{
-						constexpr float Speed = 30.0f;
+						constexpr float Speed = 42.0f;
 
 						camera_.MoveAlongDirection(camera_.Right(), dx * elapsedTime_ * Speed);
 						camera_.MoveAlongDirection(camera_.Up(), -dy * elapsedTime_ * Speed);
@@ -354,7 +354,7 @@ namespace Toy
 		auto logic = [this]()
 		{
 			{
-				constexpr float Speed = 25.0f;
+				constexpr float Speed = 42.0f;
 				if (keyStateBuffer_[InputW] == KeyState::Down)
 				{
 					camera_.MoveAlongDirection(camera_.Look(), Speed * elapsedTime_);
@@ -999,8 +999,8 @@ namespace Toy
 		auto& vertexBuffer1 = mainVertexBuffer_;
 
 		GeometryGenerator generator;
-		auto meshData = generator.CreateGeosphere(15.0f, 3);
-		auto meshData2 = generator.CreateBox(10.0f, 10.0f, 10.0f, 2);
+		auto meshData = generator.CreateCylinder(15.0f, 12.0f, 25.0f, 64, 64);
+		auto meshData2 = generator.CreateBox(10.0f, 10.0f, 10.0f, 4);
 
 		struct MeshData
 		{

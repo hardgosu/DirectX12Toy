@@ -10,55 +10,9 @@
 /*
 FBX SDK dependency
 */
-#include <fbxarray.h>
 
 using namespace DirectX;
 
-struct SkinnedVertex
-{
-	XMFLOAT3 position_{ 0.0f,0.0f,0.0f };
-	XMFLOAT4 color_{ 0.0f,0.0f,1.0f,1.0f };
-	XMFLOAT3 normal_{ 0.0f,1.0f,0.0f };
-	XMFLOAT2 textureCoordinate_{ 0,0 };
-	XMFLOAT3 tangent_{ 1.0f,0.0f,0.0f };
-	unsigned char boneIndices_[4]{};
-	XMFLOAT4 boneWeights_{ 1.0f,0,0,0 };
-};
-
-struct BoneKeyFrameMatrixs
-{
-	std::vector<DirectX::XMFLOAT4X4> keyFrameMatrixs;
-	float startTime{};
-	float endTime{ 1.0f };
-	float currentFrameTime{};
-
-	XMFLOAT4X4 GetMatrixByTime(float frameTime)
-	{
-		currentFrameTime += frameTime;
-
-		if (currentFrameTime >= endTime)
-		{
-			currentFrameTime = 0;
-		}
-
-		return keyFrameMatrixs[(int)((currentFrameTime / (endTime - startTime)) * keyFrameMatrixs.size())];
-	}
-
-	XMFLOAT4X4 GetMatrixByTotalTime(float totalTime) const
-	{
-		totalTime = std::fmod(totalTime, endTime);
-
-		return keyFrameMatrixs[(int)((totalTime / (endTime - startTime)) * keyFrameMatrixs.size())];
-
-	}
-
-	void GetMatrixByTotalTime(float totalTime, DirectX::XMFLOAT4X4& out) const
-	{
-		totalTime = std::fmod(totalTime, endTime);
-
-		out = keyFrameMatrixs[(int)((totalTime / (endTime - startTime)) * keyFrameMatrixs.size())];
-	}
-};
 
 //메쉬 -> 뼈 -> 뼈의 키프레임 아핀변환 or 오프셋 or 뼈이름 or 정점 or 인덱스 or 계층구조
 struct Capsule

@@ -16,6 +16,11 @@
 #pragma GCC diagnostic ignored "-Wformat-security"
 #endif
 
+int WriteStringToFile(char* pszBuffer)
+{
+	return printf_s(pszBuffer);
+}
+
 void DisplayMetaDataConnections(FbxObject *pfbxObject)
 {
 	int nbMetaData = pfbxObject->GetSrcObjectCount<FbxObjectMetaData>();

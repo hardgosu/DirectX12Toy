@@ -69,7 +69,7 @@ struct DisplayHierachy
 	void GetHierarchies(FbxNode *pfbxNode, const std::vector<std::vector<std::string>>& boneNameLists, std::vector<std::vector<int>>& hierarchies);
 	void GetHierarchies(FbxNode *pfbxNode, int *pnFrame, int parent, const std::vector<std::string>& boneNameLists, std::vector<int>& hierarchies);
 
-	void GetMaterialGroups(FbxNode* startNode, std::vector<std::vector<PrimitiveGroup>>& primitiveGroups, const string fileName);
+	void GetMaterialGroups(FbxNode* startNode, std::vector<std::vector<PrimitiveGroup>>& primitiveGroups, const std::string fileName);
 
 	int GetAnimationCurves(FbxAnimLayer *pfbxAnimationLayer, FbxNode *pfbxNode);
 	int GetAnimationLayerCurveNodes(FbxAnimLayer *pfbxAnimationLayer, FbxNode *pfbxNode);

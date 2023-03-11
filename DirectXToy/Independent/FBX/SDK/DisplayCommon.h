@@ -19,7 +19,7 @@
 #include <set>
 #include <unordered_map>
 #include <DirectXMath.h>
-#include "..//SkinningHelper.h"
+#include "Common.h"
 
 using namespace DirectX;
 
@@ -55,7 +55,7 @@ void Display4DVector(char *pHeader, FbxVector4 value, char *pSuffix  = "", int n
 void DisplayMatrix(FbxAMatrix value);
 void DisplayMatrix(char *pHeader, FbxAMatrix value, char *pSuffix = "", int nTabIndents = 0);
 
-extern void WriteStringToFile(char *pszBuffer);
+int WriteStringToFile(char* pszBuffer);
 
 #endif // #ifndef _DISPLAY_COMMON_H
 
