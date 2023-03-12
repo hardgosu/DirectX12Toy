@@ -59,15 +59,19 @@
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="PropertySheet2.props" />
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="PropertySheet3.props" />
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="PropertySheet.props" />
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="PropertySheet1.props" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -78,10 +82,13 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(IncludePath)</IncludePath>
+    <IncludePath>$(FBXSDKInclude);$(IncludePath)</IncludePath>
+    <LibraryPath>$(FBXSDKLib);$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
+    <IncludePath>$(FBXSDKInclude);$(IncludePath)</IncludePath>
+    <LibraryPath>$(FBXSDKLib);$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -148,6 +155,11 @@
     <ClCompile Include="CompleteHeader.cpp" />
     <ClCompile Include="Independent\DDSTextureLoader.cpp" />
     <ClCompile Include="DirectXToy.cpp" />
+    <ClCompile Include="Independent\FBX\FBXImporter.cpp" />
+    <ClCompile Include="Independent\FBX\SDK\Common.cpp" />
+    <ClCompile Include="Independent\FBX\SDK\DisplayAnimation.cxx" />
+    <ClCompile Include="Independent\FBX\SDK\DisplayCommon.cpp" />
+    <ClCompile Include="Independent\FBX\SDK\DisplayHierarchy.cpp" />
     <ClCompile Include="Independent\GeometryGenerator.cpp" />
     <ClCompile Include="Independent\MathHelper.cpp" />
     <ClCompile Include="Main.cpp" />
@@ -157,6 +169,11 @@
     <ClInclude Include="Independent\d3dx12.h" />
     <ClInclude Include="Independent\DDSTextureLoader.h" />
     <ClInclude Include="Independent\DefaultBuffer.h" />
+    <ClInclude Include="Independent\FBX\FBXImporter.h" />
+    <ClInclude Include="Independent\FBX\SDK\Common.h" />
+    <ClInclude Include="Independent\FBX\SDK\DisplayAnimation.h" />
+    <ClInclude Include="Independent\FBX\SDK\DisplayCommon.h" />
+    <ClInclude Include="Independent\FBX\SDK\DisplayHierarchy.h" />
     <ClInclude Include="Independent\StateMachine.h" />
     <ClInclude Include="Independent\UploadBuffer.h" />
     <ClInclude Include="DirectXToy.h" />

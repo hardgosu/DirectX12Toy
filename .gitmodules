@@ -1,0 +1,3 @@
+[submodule "DirectXToy/Independent/FBX/SDK/Submodule"]
+	path = DirectXToy/Independent/FBX/SDK/Submodule
+	url = https://gitlab.com/Hardgosu/fbx-sdk.git
