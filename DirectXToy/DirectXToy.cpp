@@ -167,7 +167,7 @@ namespace Toy
 			ASSERT_SUCCEEDED(device_->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&commandQueue_)));
 			ASSERT_SUCCEEDED(device_->CreateCommandList(0, commandListType, mainCommandAllocator_.Get(), nullptr, IID_PPV_ARGS(&commandList_)));
 			ASSERT_SUCCEEDED(device_->CreateFence(InitialFenceValue, D3D12_FENCE_FLAGS::D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence_)));
-			commandList_->Close();
+			//commandList_->Close();
 		}
 
 		//Create Descriptor Heap
@@ -397,15 +397,7 @@ namespace Toy
 			}
 
 			{
-				currentPassDataIndex_ = (currentPassDataIndex_ + 1) % NumFrameResource;
 				auto& currentPassData = passData_[currentPassDataIndex_];
-				if (currentPassData.fence_ > fence_->GetCompletedValue())
-				{
-					HANDLE eventHandle = CreateEventEx(nullptr, false, false, EVENT_ALL_ACCESS);
-					ASSERT_SUCCEEDED(fence_->SetEventOnCompletion(currentPassData.fence_, eventHandle));
-					WaitForSingleObject(eventHandle, INFINITE);
-					CloseHandle(eventHandle);
-				}
 
 				{
 					ConstantBuffer1 constantBuffer1;
@@ -465,12 +457,14 @@ namespace Toy
 
 		auto beginRenderPass = [this, &currentPassData]()
 		{
+			/*
 			ASSERT_SUCCEEDED(currentPassData.commandAllocator_->Reset());
 			std::vector<ID3D12GraphicsCommandList*> commandLists
 			{
 				commandList_.Get(),
 			};
 			std::for_each(commandLists.begin(), commandLists.end(), [this, &currentPassData](auto& elem) { elem->Reset(currentPassData.commandAllocator_.Get(), nullptr); });
+			*/
 		};
 		beginRenderPass();
 
@@ -560,13 +554,29 @@ namespace Toy
 			{
 				commandList_.Get(),
 			};
-			auto afterExecution = [this, &currentPassData]()
+			auto afterExecution = [this, &currentPassData, &commandLists]()
 			{
 				currentPassData.fence_ = mainFenceValue_;
 				iDXGISwapChain_->Present(0, 0);
 				currentBackBufferIndex_ = (currentBackBufferIndex_ + 1) % SwapChainCount;
+
+				currentPassDataIndex_ = (currentPassDataIndex_ + 1) % NumFrameResource;
+				auto& currentPassData = passData_[currentPassDataIndex_];
+				if (currentPassData.fence_ > fence_->GetCompletedValue())
+				{
+					HANDLE eventHandle = CreateEventEx(nullptr, false, false, EVENT_ALL_ACCESS);
+					ASSERT_SUCCEEDED(fence_->SetEventOnCompletion(currentPassData.fence_, eventHandle));
+					WaitForSingleObject(eventHandle, INFINITE);
+					CloseHandle(eventHandle);
+				}
+
+				ASSERT_SUCCEEDED(currentPassData.commandAllocator_->Reset());
+				std::for_each(commandLists.begin(), commandLists.end(), [&currentPassData](auto& elem)
+					{
+						ASSERT_SUCCEEDED(elem->Reset(currentPassData.commandAllocator_.Get(), nullptr));
+					});
 			};
-			ExecuteCommandList(commandLists, fence_.Get(), commandQueue_.Get(), mainFenceValue_, false, afterExecution);
+			ExecuteCommandList(commandLists, fence_.Get(), commandQueue_.Get(), currentPassData.commandAllocator_.Get(), mainFenceValue_, false, afterExecution);
 		};
 		endRenderPass();
 	}
@@ -699,8 +709,8 @@ namespace Toy
 
 	void DirectXToy::LoadTexture(ID3D12GraphicsCommandList* commandList, ID3D12CommandAllocator* allocator)
 	{
-		ASSERT_SUCCEEDED(allocator->Reset());
-		ASSERT_SUCCEEDED(commandList->Reset(allocator, nullptr));
+		//ASSERT_SUCCEEDED(allocator->Reset());
+		//ASSERT_SUCCEEDED(commandList->Reset(allocator, nullptr));
 
 		auto version1 = [this]()
 		{
@@ -955,13 +965,13 @@ namespace Toy
 		};
 		version3();
 
-		ExecuteCommandList(commandList, fence_.Get(), commandQueue_.Get(), mainFenceValue_);
+		ExecuteCommandList(commandList, fence_.Get(), commandQueue_.Get(), mainCommandAllocator_.Get(), mainFenceValue_);
 	}
 
 	void DirectXToy::LoadMesh(ID3D12GraphicsCommandList* commandList, ID3D12CommandAllocator* allocator)
 	{
-		ASSERT_SUCCEEDED(allocator->Reset());
-		ASSERT_SUCCEEDED(commandList->Reset(allocator, nullptr));
+		//ASSERT_SUCCEEDED(allocator->Reset());
+		//ASSERT_SUCCEEDED(commandList->Reset(allocator, nullptr));
 
 		//1버퍼는 1메시에 대응하지 않는다.
 		auto buildMesh = [](const GeometryGenerator::MeshData& meshData, VertexBufferPool& vertexBuffer)
@@ -1020,11 +1030,11 @@ namespace Toy
 		}
 
 		vertexBuffer1.Confirm(device_.Get(), commandList_.Get());
-		ExecuteCommandList(commandList, fence_.Get(), commandQueue_.Get(), mainFenceValue_);
+		ExecuteCommandList(commandList, fence_.Get(), commandQueue_.Get(), mainCommandAllocator_.Get(), mainFenceValue_);
 	}
 	//TODO : Signature 추가 및 개선
 	void DirectXToy::ExecuteCommandList(std::vector<ID3D12GraphicsCommandList*>& commandLists, ID3D12Fence* fence,
-		ID3D12CommandQueue* commandQueue, UINT64& fenceValue, bool sync/*true*/, std::function<void()>&& afterExecution) const
+		ID3D12CommandQueue* commandQueue, ID3D12CommandAllocator* commandAllocator, UINT64& fenceValue, bool sync/*true*/, std::function<void()>&& afterExecution) const
 	{
 		std::for_each(commandLists.begin(), commandLists.end(), [](auto& elem)
 			{
@@ -1037,17 +1047,22 @@ namespace Toy
 			afterExecution();
 		}
 		ASSERT_SUCCEEDED(commandQueue->Signal(fence, fenceValue));
-		if (sync && fence->GetCompletedValue() < fenceValue)
+		if (sync)
 		{
-			HANDLE eventHandle = CreateEventEx(nullptr, false, false, EVENT_ALL_ACCESS);
-			ASSERT_SUCCEEDED(fence->SetEventOnCompletion(fenceValue, eventHandle));
-			WaitForSingleObject(eventHandle, INFINITE);
-			CloseHandle(eventHandle);
+			if (fence->GetCompletedValue() < fenceValue)
+			{
+				HANDLE eventHandle = CreateEventEx(nullptr, false, false, EVENT_ALL_ACCESS);
+				ASSERT_SUCCEEDED(fence->SetEventOnCompletion(fenceValue, eventHandle));
+				WaitForSingleObject(eventHandle, INFINITE);
+				CloseHandle(eventHandle);
+			}
+			ASSERT_SUCCEEDED(commandAllocator->Reset());
+			std::for_each(commandLists.begin(), commandLists.end(), [commandAllocator](auto& elem) { ASSERT_SUCCEEDED(elem->Reset(commandAllocator, nullptr)); });
 		}
 	}
 
 	void DirectXToy::ExecuteCommandList(ID3D12GraphicsCommandList* commandList, ID3D12Fence* fence,
-		ID3D12CommandQueue* commandQueue, UINT64& fenceValue, bool sync/*true*/, std::function<void()>&& afterExecution) const
+		ID3D12CommandQueue* commandQueue, ID3D12CommandAllocator* commandAllocator, UINT64& fenceValue, bool sync/*true*/, std::function<void()>&& afterExecution) const
 	{
 		commandList->Close();
 
@@ -1062,12 +1077,17 @@ namespace Toy
 			afterExecution();
 		}
 		ASSERT_SUCCEEDED(commandQueue->Signal(fence, ++fenceValue));
-		if (sync && fence->GetCompletedValue() < fenceValue)
+		if (sync)
 		{
-			HANDLE eventHandle = CreateEventEx(nullptr, false, false, EVENT_ALL_ACCESS);
-			ASSERT_SUCCEEDED(fence->SetEventOnCompletion(fenceValue, eventHandle));
-			WaitForSingleObject(eventHandle, INFINITE);
-			CloseHandle(eventHandle);
+			if (fence->GetCompletedValue() < fenceValue)
+			{
+				HANDLE eventHandle = CreateEventEx(nullptr, false, false, EVENT_ALL_ACCESS);
+				ASSERT_SUCCEEDED(fence->SetEventOnCompletion(fenceValue, eventHandle));
+				WaitForSingleObject(eventHandle, INFINITE);
+				CloseHandle(eventHandle);
+			}
+			ASSERT_SUCCEEDED(commandAllocator->Reset());
+			std::for_each(commandLists.begin(), commandLists.end(), [commandAllocator](auto& elem) { ASSERT_SUCCEEDED(elem->Reset(commandAllocator, nullptr)); });
 		}
 	}
 
@@ -1103,8 +1123,8 @@ namespace Toy
 
 		//hr = factory->CreateSwapChain(commandQueue.Get(), &desc, reinterpret_cast<IDXGISwapChain**>(output.GetAddressOf()));
 
-		ASSERT_SUCCEEDED(allocator->Reset());
-		ASSERT_SUCCEEDED(commandList->Reset(allocator, nullptr));
+		//ASSERT_SUCCEEDED(allocator->Reset());
+		//ASSERT_SUCCEEDED(commandList->Reset(allocator, nullptr));
 
 		for (auto& buffer : swapChainBuffers_)
 		{
@@ -1169,7 +1189,7 @@ namespace Toy
 		{
 			commandList,
 		};
-		ExecuteCommandList(commandLists, fence_.Get(), commandQueue_.Get(), mainFenceValue_, true);
+		ExecuteCommandList(commandLists, fence_.Get(), commandQueue_.Get(), allocator, mainFenceValue_, true);
 
 		//Update Viewport, Scissor rect
 
