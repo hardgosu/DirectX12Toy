@@ -561,19 +561,19 @@ namespace Toy
 				currentBackBufferIndex_ = (currentBackBufferIndex_ + 1) % SwapChainCount;
 
 				currentPassDataIndex_ = (currentPassDataIndex_ + 1) % NumFrameResource;
-				auto& currentPassData = passData_[currentPassDataIndex_];
-				if (currentPassData.fence_ > fence_->GetCompletedValue())
+				auto& nextPassData = passData_[currentPassDataIndex_];
+				if (nextPassData.fence_ > fence_->GetCompletedValue())
 				{
 					HANDLE eventHandle = CreateEventEx(nullptr, false, false, EVENT_ALL_ACCESS);
-					ASSERT_SUCCEEDED(fence_->SetEventOnCompletion(currentPassData.fence_, eventHandle));
+					ASSERT_SUCCEEDED(fence_->SetEventOnCompletion(nextPassData.fence_, eventHandle));
 					WaitForSingleObject(eventHandle, INFINITE);
 					CloseHandle(eventHandle);
 				}
 
-				ASSERT_SUCCEEDED(currentPassData.commandAllocator_->Reset());
-				std::for_each(commandLists.begin(), commandLists.end(), [&currentPassData](auto& elem)
+				ASSERT_SUCCEEDED(nextPassData.commandAllocator_->Reset());
+				std::for_each(commandLists.begin(), commandLists.end(), [&nextPassData](auto& elem)
 					{
-						ASSERT_SUCCEEDED(elem->Reset(currentPassData.commandAllocator_.Get(), nullptr));
+						ASSERT_SUCCEEDED(elem->Reset(nextPassData.commandAllocator_.Get(), nullptr));
 					});
 			};
 			ExecuteCommandList(commandLists, fence_.Get(), commandQueue_.Get(), currentPassData.commandAllocator_.Get(), mainFenceValue_, false, afterExecution);
