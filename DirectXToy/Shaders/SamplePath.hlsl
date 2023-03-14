@@ -21,7 +21,7 @@ struct VSOut
     uint instanceID : INSTANCEID;
 };
 
-VSOut VSMain(VSInput vin, uint instanceID : SV_InstanceID)
+VSOut VSMain(VSInput vin, uint instanceID : SV_InstanceID, uint vertexID : SV_VertexID)
 {
 	VSOut vout = (VSOut)0.0f;
 	InstanceData instData = gInstanceData[instanceID];
@@ -45,6 +45,44 @@ VSOut VSMain(VSInput vin, uint instanceID : SV_InstanceID)
     // Generate projective tex-coords to project shadow map onto scene.
     vout.ShadowPosH = mul(posW, gShadowMatrix);
     vout.instanceID = instanceID;
+
+    if (vertexID % 6 == 0)
+    {
+        vout.PosH.x = -0.5f;
+        vout.PosH.y = 0.5f;
+        vout.PosH.z = 0.5f;
+    }
+    if (vertexID % 6  == 1)
+    {
+        vout.PosH.x = 0.5f;
+        vout.PosH.y = 0.5f;
+        vout.PosH.z = 0.5f;
+    }
+    if (vertexID % 6 == 2)
+    {
+        vout.PosH.x = -0.5f;
+        vout.PosH.y = -0.5f;
+        vout.PosH.z = 0.5f;
+    }
+    if (vertexID % 6 == 3)
+    {
+        vout.PosH.x = 0.5f;
+        vout.PosH.y = -0.5f;
+        vout.PosH.z = 0.5f;
+    }
+    if (vertexID % 6 == 4)
+    {
+        vout.PosH.x = 1.0f;
+        vout.PosH.y = 0.5f;
+        vout.PosH.z = 0.5f;
+    }
+    if (vertexID % 6 == 5)
+    {
+        vout.PosH.x = -1.0f;
+        vout.PosH.y = 0.5f;
+        vout.PosH.z = 0.5f;
+    }
+
 
 	return vout;
 }
