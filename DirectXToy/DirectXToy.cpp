@@ -562,7 +562,8 @@ namespace Toy
 
 				currentPassDataIndex_ = (currentPassDataIndex_ + 1) % NumFrameResource;
 				auto& nextPassData = passData_[currentPassDataIndex_];
-				if (nextPassData.fence_ > fence_->GetCompletedValue())
+				auto completedValue = fence_->GetCompletedValue();
+				if (nextPassData.fence_ > completedValue)
 				{
 					HANDLE eventHandle = CreateEventEx(nullptr, false, false, EVENT_ALL_ACCESS);
 					ASSERT_SUCCEEDED(fence_->SetEventOnCompletion(nextPassData.fence_, eventHandle));
@@ -1042,11 +1043,11 @@ namespace Toy
 			});
 		commandQueue->ExecuteCommandLists(commandLists.size(), reinterpret_cast<ID3D12CommandList* const*>(commandLists.data()));
 		++fenceValue;
+		ASSERT_SUCCEEDED(commandQueue->Signal(fence, fenceValue));
 		if (afterExecution != nullptr)
 		{
 			afterExecution();
 		}
-		ASSERT_SUCCEEDED(commandQueue->Signal(fence, fenceValue));
 		if (sync)
 		{
 			if (fence->GetCompletedValue() < fenceValue)
@@ -1072,11 +1073,11 @@ namespace Toy
 		};
 
 		commandQueue->ExecuteCommandLists(commandLists.size(), reinterpret_cast<ID3D12CommandList* const*>(commandLists.data()));
+		ASSERT_SUCCEEDED(commandQueue->Signal(fence, ++fenceValue));
 		if (afterExecution != nullptr) //ChatGPT가 empty() 함수가 있다는데..
 		{
 			afterExecution();
 		}
-		ASSERT_SUCCEEDED(commandQueue->Signal(fence, ++fenceValue));
 		if (sync)
 		{
 			if (fence->GetCompletedValue() < fenceValue)
