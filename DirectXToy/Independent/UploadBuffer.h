@@ -11,7 +11,7 @@ class UploadBuffer
 {
 public:
 	UploadBuffer(ID3D12Device* device, UINT elementCount, bool isConstantBuffer) :
-		isConstantBuffer_{ isConstantBuffer }
+		isConstantBuffer_{ isConstantBuffer }, elementCount_{ elementCount }
 	{
 		elementByteSize_ = sizeof(T);
 
@@ -81,10 +81,21 @@ public:
 	{
 		return (byteSize + 255) & ~255;
 	}
+
+	UINT ElementCount()
+	{
+		return elementCount_;
+	}
+
+	UINT ElementByteSize()
+	{
+		return elementByteSize_;
+	}
+
 	BYTE* pMappedData_{ nullptr };
 private:
 	ComPtr<ID3D12Resource> uploadBuffer_;
-
+	UINT elementCount_{};
 	UINT elementByteSize_{};
 	bool isConstantBuffer_{ false };
 };
