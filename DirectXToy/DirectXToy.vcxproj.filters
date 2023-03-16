@@ -36,6 +36,9 @@
     <ClCompile Include="UnitTest\concurrent unordered map.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
+    <ClCompile Include="UnitTest\concurrent unordered map 2.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Independent\IGameApp.h">
