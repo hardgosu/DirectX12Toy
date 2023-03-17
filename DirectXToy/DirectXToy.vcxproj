@@ -151,7 +151,7 @@
     <ClCompile Include="Independent\GeometryGenerator.cpp" />
     <ClCompile Include="Independent\MathHelper.cpp" />
     <ClCompile Include="Main.cpp" />
-    <ClCompile Include="UnitTest\concurrent unordered map 2.cpp" />
+    <ClCompile Include="UnitTest\concurrent unordered map 3.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="CompleteHeader.h" />

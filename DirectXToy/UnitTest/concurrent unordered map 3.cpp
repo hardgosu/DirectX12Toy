@@ -13,14 +13,18 @@
 #include <concurrent_unordered_map.h>
 #include <concurrent_vector.h>
 
+
 constexpr int ThreadCount = 8;
 volatile int Loop = 10000000 / ThreadCount;
 
+
 using namespace DirectX;
 
-using TestMap = concurrency::concurrent_unordered_map<int, std::string>;
-//using TestMap = std::unordered_map<int, std::string>;
+using TestMap = std::unordered_map<int, std::string>;
+using TestMap2 = concurrency::concurrent_unordered_map<int, std::string>;
+
 TestMap a;
+TestMap2 b;
 
 
 std::mutex lock;
@@ -37,6 +41,7 @@ int main()
 		{
 			threads.emplace_back([threadNumber = i]()
 				{
+					TestMap localMap;
 					for (int j{ Loop * threadNumber }; j < Loop * (threadNumber + 1); ++j)
 					{
 						/*
@@ -45,8 +50,12 @@ int main()
 						a[asd] = std::to_string(j) + "asd";
 						++aasd;
 						*/
-						a[aasd++] = std::to_string(j) + "asd";
+						localMap[j] = std::to_string(j) + "asd";
 					}
+					
+					lock.lock();
+					a.merge(std::move(localMap));
+					lock.unlock();
 				});
 		}
 		std::for_each(threads.begin(), threads.end(), [](auto& thread) { thread.join(); });
@@ -56,7 +65,8 @@ int main()
 			<< std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << " ms" << std::endl;
 
 		//reset
-		//a.clear();
+		//check size equal to Total Loop
+		a.clear();
 	}
 
 	{
@@ -69,8 +79,13 @@ int main()
 				{
 					for (int j{ Loop * threadNumber }; j < Loop * (threadNumber + 1); ++j)
 					{
-						//volatile useless maybe
-						volatile std::string asd = a[j];
+						/*
+						//compare with this ^_T
+						int asd = aasd.load();
+						a[asd] = std::to_string(j) + "asd";
+						++aasd;
+						*/
+						b[aasd++] = std::to_string(j) + "asd";
 					}
 				});
 		}
@@ -81,8 +96,9 @@ int main()
 			<< std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << " ms" << std::endl;
 
 		//reset
-		a.clear();
+		b.clear();
 	}
+
 
 	{
 		auto begin = std::chrono::high_resolution_clock::now();
@@ -90,7 +106,7 @@ int main()
 		concurrency::parallel_for(0, Loop * ThreadCount, [](int i)
 			{
 				//std::lock_guard<std::mutex> l(lock);
-				a[i] = std::to_string(i) + "asd";
+				b[i] = std::to_string(i) + "asd";
 			});
 
 		auto end = std::chrono::high_resolution_clock::now();
@@ -98,6 +114,6 @@ int main()
 			<< std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << " ms" << std::endl;
 
 		//reset
-		a.clear();
+		b.clear();
 	}
 }
