@@ -29,6 +29,7 @@
 #include <chrono>
 #include <functional>
 #include <thread>
+#include <any>
 #include "Independent/IGameApp.h"
 #include "Independent/d3dx12.h"
 #include "Independent/DDSTextureLoader.h"

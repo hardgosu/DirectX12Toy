@@ -414,11 +414,30 @@ namespace Toy
 			std::unique_ptr<UploadBuffer<ConstantBuffer1>> constantBuffer_;
 
 			ComPtr<ID3D12CommandAllocator> commandAllocator_;
+
+			static int NumThreads;
+			struct MultiThreadingData
+			{
+				//TODO : main, shadow, ... ÆÐ½ºº°?
+				std::vector<ComPtr<ID3D12CommandAllocator>> batchCommandAllocators_;
+				std::vector<ComPtr<ID3D12GraphicsCommandList>> batchCommandLists_;
+				std::vector<HANDLE> events_;
+				MultiThreadingData(ID3D12Device* device, ID3D12CommandQueue* commandQueue);
+				ID3D12Device* device_{ nullptr };
+				ID3D12CommandQueue* commandQueue_{ nullptr };
+			};
+			std::unique_ptr<MultiThreadingData> multiThreadingData_;
+
 			UINT64 fence_{};
 		};
+
 		static constexpr unsigned NumFrameResource = 3;
 		unsigned currentPassDataIndex_{ 0 };
 		std::array<PassData, NumFrameResource> passData_;
+		PassData& GetCurrentPassData()
+		{
+			return passData_[currentPassDataIndex_];
+		}
 
 		struct CommonPassData
 		{
