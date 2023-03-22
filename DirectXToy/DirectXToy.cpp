@@ -555,10 +555,10 @@ namespace Toy
 								thisThreadCommandList->SetGraphicsRootDescriptorTable(9,
 									descriptorHandleAccesors_[descriptorHeapCBVSRVUAV_.Get()].GetGPUHandle(0));
 
-								//for (const auto& renderItem : renderItems_)
+								auto loop = renderItems_.size() / PassData::NumThreads;
+								for (size_t i{}; i < loop; ++i)
 								{
-									//TODO : 렌더 아이템 분할
-									const auto& renderItem = renderItems_[threadIndex];
+									const auto& renderItem = renderItems_[i + (threadIndex * loop)];
 
 									auto& mesh = renderItem.desc_.mesh_;
 									auto vb = mesh->GetVertexBufferView();
@@ -741,7 +741,7 @@ namespace Toy
 	void DirectXToy::LoadRenderItem()
 	{
 		static constexpr int NumRenderItems = 4;
-		static constexpr int InstanceBufferSize = 2000;
+		static constexpr int InstanceBufferSize = 1;
 
 		auto buildRenderItem = [this]()
 		{
@@ -750,15 +750,17 @@ namespace Toy
 			InstancingRenderItem::Desc desc;
 			desc.pso_ = psoMap_[PSO::StaticMesh].Get();
 			desc.instanceBufferCount_ = InstanceBufferSize;
-
-			desc.mesh_ = &meshMap_["Box"];
-			renderItems_.push_back(desc);
-			desc.mesh_ = &meshMap_["Box"];
-			renderItems_.push_back(desc);
-			desc.mesh_ = &meshMap_["GeoSphere"];
-			renderItems_.push_back(desc);
-			desc.mesh_ = &meshMap_["GeoSphere"];
-			renderItems_.push_back(desc);
+			for (int i{}; i < 1250; ++i)
+			{
+				desc.mesh_ = &meshMap_["Box"];
+				renderItems_.push_back(desc);
+				desc.mesh_ = &meshMap_["Box"];
+				renderItems_.push_back(desc);
+				desc.mesh_ = &meshMap_["GeoSphere"];
+				renderItems_.push_back(desc);
+				desc.mesh_ = &meshMap_["GeoSphere"];
+				renderItems_.push_back(desc);
+			}
 		};
 		buildRenderItem();
 
@@ -1791,7 +1793,7 @@ namespace Toy
 
 namespace Toy
 {
-	int DirectXToy::PassData::NumThreads = 4;
+	int DirectXToy::PassData::NumThreads = 8;
 
 	DirectXToy::PassData::MultiThreadingData::MultiThreadingData(ID3D12Device* device, ID3D12CommandQueue* commandQueue)
 		: device_{ device }, commandQueue_{ commandQueue }
