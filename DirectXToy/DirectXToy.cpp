@@ -461,7 +461,7 @@ namespace Toy
 		calculateFPS(deltaT);
 		processInput();
 		logic();
-		//RenderScene();
+		RenderScene();
 
 		auto multiThreadRender = [this]()
 		{
@@ -618,7 +618,7 @@ namespace Toy
 			endRenderPass();
 		};
 
-		multiThreadRender();
+		//multiThreadRender();
 	}
 
 	void DirectXToy::RenderScene()
@@ -750,7 +750,7 @@ namespace Toy
 			InstancingRenderItem::Desc desc;
 			desc.pso_ = psoMap_[PSO::StaticMesh].Get();
 			desc.instanceBufferCount_ = InstanceBufferSize;
-			for (int i{}; i < 1250; ++i)
+			for (int i{}; i < 125; ++i)
 			{
 				desc.mesh_ = &meshMap_["Box"];
 				renderItems_.push_back(desc);
