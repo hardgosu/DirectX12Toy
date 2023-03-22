@@ -485,107 +485,127 @@ namespace Toy
 				};
 				std::for_each(commandLists.begin(), commandLists.end(), [this, &currentPassData](auto& elem) { elem->Reset(currentPassData.commandAllocator_.Get(), nullptr); });
 			
+
+
 				commandList_->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentSwapChainBuffer(),
 					D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
+
+				auto currentRenderTargetView = descriptorHandleAccesors_[descriptorHeapRTV_.Get()].GetCPUHandle(currentBackBufferIndex_);
+				auto depthStencilView = descriptorHandleAccesors_[descriptorHeapDSV_.Get()].GetCPUHandle(0);
+
+				commandList_->ClearRenderTargetView(currentRenderTargetView, Colors::LightPink, 0, nullptr);
+				commandList_->ClearDepthStencilView(depthStencilView, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
+			
+				//트랜지션 동기화 때문에 여기서 한번 끊어야함
+				ExecuteCommandList(commandLists, fence_.Get(), commandQueue_.Get(), mainFenceValue_);
+
+				//TODO : Reset을 ExecuteCommandList에 밀어넣은 브렌치에서 제거
+				ASSERT_SUCCEEDED(currentPassData.commandAllocator_->Reset());
+				std::for_each(commandLists.begin(), commandLists.end(), [this, &currentPassData](auto& elem) { elem->Reset(currentPassData.commandAllocator_.Get(), nullptr); });
+
 			}
 
-			concurrency::parallel_for(0, PassData::NumThreads, [this](int threadIndex)
-				{
-					auto& currentPassData = GetCurrentPassData();
+			//Middle
+			{
+				auto& currentPassData = GetCurrentPassData();
 
-					std::vector<std::function<void()>> renderPasses
+				concurrency::parallel_for(0, PassData::NumThreads, [this, &currentPassData](int threadIndex)
 					{
-						//shadow pass
-						[this, &currentPassData, threadIndex]()
+						std::vector<std::function<void()>> renderPasses
 						{
-
-
-						},
-
-						//main pass
-						[this, &currentPassData, threadIndex]()
-						{
-							auto& thisThreadCommandList = currentPassData.multiThreadingData_->batchCommandLists_[threadIndex];
-
-							//thisThreadCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentSwapChainBuffer(),
-							//	D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
-							thisThreadCommandList->RSSetViewports(1, &mainViewport_);
-							thisThreadCommandList->RSSetScissorRects(1, &mainScissor_);
-							auto currentRenderTargetView = descriptorHandleAccesors_[descriptorHeapRTV_.Get()].GetCPUHandle(currentBackBufferIndex_);
-							auto depthStencilView = descriptorHandleAccesors_[descriptorHeapDSV_.Get()].GetCPUHandle(0);
-							thisThreadCommandList->ClearRenderTargetView(currentRenderTargetView, Colors::LightPink, 0, nullptr);
-							thisThreadCommandList->ClearDepthStencilView(depthStencilView, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
-							thisThreadCommandList->OMSetRenderTargets(1, &currentRenderTargetView, true, &depthStencilView);
-
-							//Do Draw Call
-							std::vector <ID3D12DescriptorHeap*> descriptorHeaps
+							//shadow pass
+							[this, &currentPassData, threadIndex]()
 							{
-								descriptorHeapCBVSRVUAV_.Get(),
-							};
-							thisThreadCommandList->SetDescriptorHeaps(descriptorHeaps.size(), descriptorHeaps.data());
-							thisThreadCommandList->SetGraphicsRootSignature(rootSignature1_.Get());
 
-							thisThreadCommandList->SetGraphicsRootConstantBufferView(0, currentPassData.constantBuffer_->Resource()->GetGPUVirtualAddress());
-							//commandList_->SetGraphicsRootConstantBufferView(1,
-							//commandList_->SetGraphicsRootConstantBufferView(2, )
-							//commandList_->SetGraphicsRootConstantBufferView(3, )
-							thisThreadCommandList->SetGraphicsRootShaderResourceView(4, currentPassData.materialBuffer_->Resource()->GetGPUVirtualAddress());
-							thisThreadCommandList->SetGraphicsRootShaderResourceView(5, currentPassData.instanceBuffer_->Resource()->GetGPUVirtualAddress());
-							thisThreadCommandList->SetGraphicsRootDescriptorTable(6,
-								descriptorHandleAccesors_[descriptorHeapCBVSRVUAV_.Get()].GetGPUHandle(0));
-							//commandList_->SetGraphicsRootDescriptorTable(7)
-							thisThreadCommandList->SetGraphicsRootDescriptorTable(8,
-								descriptorHandleAccesors_[descriptorHeapCBVSRVUAV_.Get()].GetGPUHandle(commonPassData_.cubemapSRVIndex_));
-							thisThreadCommandList->SetGraphicsRootDescriptorTable(9,
-								descriptorHandleAccesors_[descriptorHeapCBVSRVUAV_.Get()].GetGPUHandle(0));
 
-							for (const auto& renderItem : renderItems_)
+							},
+
+							//main pass
+							[this, &currentPassData, threadIndex]()
 							{
-								auto& mesh = renderItem.desc_.mesh_;
-								auto vb = mesh->GetVertexBufferView();
-								auto ib = mesh->GetIndexBufferView();
-								thisThreadCommandList->SetPipelineState(renderItem.desc_.pso_);
+								auto& thisThreadCommandList = currentPassData.multiThreadingData_->batchCommandLists_[threadIndex];
 
-								thisThreadCommandList->IASetVertexBuffers(0, 1, &vb);
-								thisThreadCommandList->IASetPrimitiveTopology(D3D12_PRIMITIVE_TOPOLOGY::D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-								//commandList_->DrawInstanced(3, 1, 0, 0);
+								//thisThreadCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentSwapChainBuffer(),
+								//	D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
+								thisThreadCommandList->RSSetViewports(1, &mainViewport_);
+								thisThreadCommandList->RSSetScissorRects(1, &mainScissor_);
+								auto currentRenderTargetView = descriptorHandleAccesors_[descriptorHeapRTV_.Get()].GetCPUHandle(currentBackBufferIndex_);
+								auto depthStencilView = descriptorHandleAccesors_[descriptorHeapDSV_.Get()].GetCPUHandle(0);
+								thisThreadCommandList->OMSetRenderTargets(1, &currentRenderTargetView, true, &depthStencilView);
 
-								if (ib.has_value())
+								//Do Draw Call
+								std::vector<ID3D12DescriptorHeap*> descriptorHeaps
 								{
-									thisThreadCommandList->IASetIndexBuffer(&ib.value());
-									thisThreadCommandList->DrawIndexedInstanced(mesh->ibDesc_->indexCount_, renderItem.visibleItemCount_, mesh->ibDesc_->startIndexLocation_, mesh->startVertexLocation_, 0);
-								}
-								else
+									descriptorHeapCBVSRVUAV_.Get(),
+								};
+								thisThreadCommandList->SetDescriptorHeaps(descriptorHeaps.size(), descriptorHeaps.data());
+								thisThreadCommandList->SetGraphicsRootSignature(rootSignature1_.Get());
+
+								thisThreadCommandList->SetGraphicsRootConstantBufferView(0, currentPassData.constantBuffer_->Resource()->GetGPUVirtualAddress());
+								//commandList_->SetGraphicsRootConstantBufferView(1,
+								//commandList_->SetGraphicsRootConstantBufferView(2, )
+								//commandList_->SetGraphicsRootConstantBufferView(3, )
+								thisThreadCommandList->SetGraphicsRootShaderResourceView(4, currentPassData.materialBuffer_->Resource()->GetGPUVirtualAddress());
+								thisThreadCommandList->SetGraphicsRootShaderResourceView(5, currentPassData.instanceBuffer_->Resource()->GetGPUVirtualAddress());
+								thisThreadCommandList->SetGraphicsRootDescriptorTable(6,
+									descriptorHandleAccesors_[descriptorHeapCBVSRVUAV_.Get()].GetGPUHandle(0));
+								//commandList_->SetGraphicsRootDescriptorTable(7)
+								thisThreadCommandList->SetGraphicsRootDescriptorTable(8,
+									descriptorHandleAccesors_[descriptorHeapCBVSRVUAV_.Get()].GetGPUHandle(commonPassData_.cubemapSRVIndex_));
+								thisThreadCommandList->SetGraphicsRootDescriptorTable(9,
+									descriptorHandleAccesors_[descriptorHeapCBVSRVUAV_.Get()].GetGPUHandle(0));
+
+								//for (const auto& renderItem : renderItems_)
 								{
-									thisThreadCommandList->DrawInstanced(mesh->vertexCount_, renderItem.visibleItemCount_, mesh->startVertexLocation_, 0);
+									//TODO : 렌더 아이템 분할
+									const auto& renderItem = renderItems_[threadIndex];
+
+									auto& mesh = renderItem.desc_.mesh_;
+									auto vb = mesh->GetVertexBufferView();
+									auto ib = mesh->GetIndexBufferView();
+									thisThreadCommandList->SetPipelineState(renderItem.desc_.pso_);
+
+									thisThreadCommandList->IASetVertexBuffers(0, 1, &vb);
+									thisThreadCommandList->IASetPrimitiveTopology(D3D12_PRIMITIVE_TOPOLOGY::D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+									//commandList_->DrawInstanced(3, 1, 0, 0);
+
+									if (ib.has_value())
+									{
+										thisThreadCommandList->IASetIndexBuffer(&ib.value());
+										thisThreadCommandList->DrawIndexedInstanced(mesh->ibDesc_->indexCount_, renderItem.visibleItemCount_, mesh->ibDesc_->startIndexLocation_, mesh->startVertexLocation_, 0);
+									}
+									else
+									{
+										thisThreadCommandList->DrawInstanced(mesh->vertexCount_, renderItem.visibleItemCount_, mesh->startVertexLocation_, 0);
+									}
 								}
-							}
 
-							//thisThreadCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentSwapChainBuffer(),
-							//	D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
-						},
-					};
-					std::for_each(renderPasses.begin(), renderPasses.end(), [this](auto& elem) { elem(); });
-				});
+								//thisThreadCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentSwapChainBuffer(),
+								//	D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
+							},
+						};
+						std::for_each(renderPasses.begin(), renderPasses.end(), [this](auto& elem) { elem(); });
+					});
+			}
 
+			
 			auto endRenderPass = [this]()
 			{
 				auto& currentPassData = GetCurrentPassData();
 
+				//backbuffer transition
 				commandList_->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentSwapChainBuffer(),
 					D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
 
-				//backbuffer transition
 				//execute
-				std::vector<ID3D12GraphicsCommandList*> commandLists
-				{
-					commandList_.Get(), 
-				};
-
+				std::vector<ID3D12GraphicsCommandList*> commandLists;
+				
 				for (int i{}; i < PassData::NumThreads; ++i)
 				{
 					commandLists.push_back(currentPassData.multiThreadingData_->batchCommandLists_[i].Get());
 				}
+
+				commandLists.push_back(commandList_.Get());
 
 				auto afterExecution = [this, &currentPassData]()
 				{
@@ -597,8 +617,6 @@ namespace Toy
 			};
 			endRenderPass();
 		};
-
-
 
 		multiThreadRender();
 	}
