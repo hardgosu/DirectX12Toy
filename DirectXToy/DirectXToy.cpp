@@ -433,6 +433,21 @@ namespace Toy
 					constantBuffer1.lights_[2].strength_ = { 0.7f, 0.7f, 0.7f };
 
 					currentPassData.constantBuffer_->CopyData(0, constantBuffer1);
+
+					/*
+					const auto& view = camera_.GetViewMatrix();
+					XMMATRIX viewMatrixXM = XMLoadFloat4x4(&view);
+
+					XMMATRIX invViewMatrixXM = XMMatrixInverse(nullptr, viewMatrixXM);
+
+					XMFLOAT4X4 invViewMatrix;
+					XMStoreFloat4x4(&invViewMatrix, invViewMatrixXM);
+
+					XMFLOAT3 cameraWorldPos;
+					cameraWorldPos.x = invViewMatrix._41;
+					cameraWorldPos.y = invViewMatrix._42;
+					cameraWorldPos.z = invViewMatrix._43;
+					*/
 				}
 
 				{
@@ -446,11 +461,6 @@ namespace Toy
 				}
 
 				{
-					Material materialData;
-					auto materialTransform = XMLoadFloat4x4(&materialData.materialTransform_);
-					XMStoreFloat4x4(&materialData.materialTransform_, XMMatrixTranspose(materialTransform));
-					materialData.normalMapIndex_ = 1;
-					currentPassData.materialBuffer_->CopyData(0, materialData);
 				}
 
 				//const Material& forTest = *reinterpret_cast<Material*>(currentPassData.materialBuffer_->pMappedData_);
