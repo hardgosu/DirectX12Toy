@@ -73,6 +73,10 @@ public:
 		std::move(datas.begin(), datas.end(), pMappedData_);
 	}
 
+	D3D12_GPU_VIRTUAL_ADDRESS GetElemAddress(int elemIndex)
+	{
+		return elementByteSize_ * elemIndex + uploadBuffer_->GetGPUVirtualAddress();
+	}
 
 	//상수버퍼의 경우 그래픽 하드웨어는 256바이트 정렬된 버퍼를 기대한다.
 	//임의의 바이트 크기를 256배수로 align시켜준다.
