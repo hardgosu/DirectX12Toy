@@ -297,6 +297,11 @@ namespace Toy
 		{
 			camera_.SetPosition(XMFLOAT3(0, -3.0f, -10.0f));
 			camera_.SetProjMatrix(0.25f * MathHelper::Pi, static_cast<float>(g_DisplayWidth) / g_DisplayHeight, 1.0f, 1000.0f);
+
+			std::for_each(passData_.begin(), passData_.end(), [this](auto& elem)
+				{
+					elem.multiThreadingData_ = std::make_unique<PassData::MultiThreadingData>(device_.Get(), commandQueue_.Get());
+				});
 		};
 		prepareScene();
 	}
@@ -428,6 +433,21 @@ namespace Toy
 					constantBuffer1.lights_[2].strength_ = { 0.7f, 0.7f, 0.7f };
 
 					currentPassData.constantBuffer_->CopyData(0, constantBuffer1);
+
+					/*
+					const auto& view = camera_.GetViewMatrix();
+					XMMATRIX viewMatrixXM = XMLoadFloat4x4(&view);
+
+					XMMATRIX invViewMatrixXM = XMMatrixInverse(nullptr, viewMatrixXM);
+
+					XMFLOAT4X4 invViewMatrix;
+					XMStoreFloat4x4(&invViewMatrix, invViewMatrixXM);
+
+					XMFLOAT3 cameraWorldPos;
+					cameraWorldPos.x = invViewMatrix._41;
+					cameraWorldPos.y = invViewMatrix._42;
+					cameraWorldPos.z = invViewMatrix._43;
+					*/
 				}
 
 				{
@@ -441,11 +461,6 @@ namespace Toy
 				}
 
 				{
-					Material materialData;
-					auto materialTransform = XMLoadFloat4x4(&materialData.materialTransform_);
-					XMStoreFloat4x4(&materialData.materialTransform_, XMMatrixTranspose(materialTransform));
-					materialData.normalMapIndex_ = 1;
-					currentPassData.materialBuffer_->CopyData(0, materialData);
 				}
 
 				//const Material& forTest = *reinterpret_cast<Material*>(currentPassData.materialBuffer_->pMappedData_);
@@ -457,6 +472,163 @@ namespace Toy
 		processInput();
 		logic();
 		RenderScene();
+
+		auto multiThreadRender = [this]()
+		{
+			//Begin
+			{
+				auto& currentPassData = GetCurrentPassData();
+				for (int i{}; i < PassData::NumThreads; ++i)
+				{
+					auto& allocator = currentPassData.multiThreadingData_->batchCommandAllocators_[i];
+					auto& commandList = currentPassData.multiThreadingData_->batchCommandLists_[i];
+
+					allocator->Reset();
+					commandList->Reset(allocator.Get(), nullptr); //TODO : Init PSO
+				}
+
+
+				ASSERT_SUCCEEDED(currentPassData.commandAllocator_->Reset());
+				std::vector<ID3D12GraphicsCommandList*> commandLists
+				{
+					commandList_.Get(),
+				};
+				std::for_each(commandLists.begin(), commandLists.end(), [this, &currentPassData](auto& elem) { elem->Reset(currentPassData.commandAllocator_.Get(), nullptr); });
+			
+
+
+				commandList_->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentSwapChainBuffer(),
+					D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
+
+				auto currentRenderTargetView = descriptorHandleAccesors_[descriptorHeapRTV_.Get()].GetCPUHandle(currentBackBufferIndex_);
+				auto depthStencilView = descriptorHandleAccesors_[descriptorHeapDSV_.Get()].GetCPUHandle(0);
+
+				commandList_->ClearRenderTargetView(currentRenderTargetView, Colors::LightPink, 0, nullptr);
+				commandList_->ClearDepthStencilView(depthStencilView, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
+			
+				//트랜지션 동기화 때문에 여기서 한번 끊어야함
+				ExecuteCommandList(commandLists, fence_.Get(), commandQueue_.Get(), mainFenceValue_);
+
+				//TODO : Reset을 ExecuteCommandList에 밀어넣은 브렌치에서 제거
+				ASSERT_SUCCEEDED(currentPassData.commandAllocator_->Reset());
+				std::for_each(commandLists.begin(), commandLists.end(), [this, &currentPassData](auto& elem) { elem->Reset(currentPassData.commandAllocator_.Get(), nullptr); });
+
+			}
+
+			//Middle
+			{
+				auto& currentPassData = GetCurrentPassData();
+
+				concurrency::parallel_for(0, PassData::NumThreads, [this, &currentPassData](int threadIndex)
+					{
+						std::vector<std::function<void()>> renderPasses
+						{
+							//shadow pass
+							[this, &currentPassData, threadIndex]()
+							{
+
+
+							},
+
+							//main pass
+							[this, &currentPassData, threadIndex]()
+							{
+								auto& thisThreadCommandList = currentPassData.multiThreadingData_->batchCommandLists_[threadIndex];
+
+								//thisThreadCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentSwapChainBuffer(),
+								//	D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
+								thisThreadCommandList->RSSetViewports(1, &mainViewport_);
+								thisThreadCommandList->RSSetScissorRects(1, &mainScissor_);
+								auto currentRenderTargetView = descriptorHandleAccesors_[descriptorHeapRTV_.Get()].GetCPUHandle(currentBackBufferIndex_);
+								auto depthStencilView = descriptorHandleAccesors_[descriptorHeapDSV_.Get()].GetCPUHandle(0);
+								thisThreadCommandList->OMSetRenderTargets(1, &currentRenderTargetView, true, &depthStencilView);
+
+								//Do Draw Call
+								std::vector<ID3D12DescriptorHeap*> descriptorHeaps
+								{
+									descriptorHeapCBVSRVUAV_.Get(),
+								};
+								thisThreadCommandList->SetDescriptorHeaps(descriptorHeaps.size(), descriptorHeaps.data());
+								thisThreadCommandList->SetGraphicsRootSignature(rootSignature1_.Get());
+
+								thisThreadCommandList->SetGraphicsRootConstantBufferView(0, currentPassData.constantBuffer_->Resource()->GetGPUVirtualAddress());
+								//commandList_->SetGraphicsRootConstantBufferView(1,
+								//commandList_->SetGraphicsRootConstantBufferView(2, )
+								//commandList_->SetGraphicsRootConstantBufferView(3, )
+								thisThreadCommandList->SetGraphicsRootShaderResourceView(4, currentPassData.materialBuffer_->Resource()->GetGPUVirtualAddress());
+								thisThreadCommandList->SetGraphicsRootShaderResourceView(5, currentPassData.instanceBuffer_->Resource()->GetGPUVirtualAddress());
+								thisThreadCommandList->SetGraphicsRootDescriptorTable(6,
+									descriptorHandleAccesors_[descriptorHeapCBVSRVUAV_.Get()].GetGPUHandle(0));
+								//commandList_->SetGraphicsRootDescriptorTable(7)
+								thisThreadCommandList->SetGraphicsRootDescriptorTable(8,
+									descriptorHandleAccesors_[descriptorHeapCBVSRVUAV_.Get()].GetGPUHandle(commonPassData_.cubemapSRVIndex_));
+								thisThreadCommandList->SetGraphicsRootDescriptorTable(9,
+									descriptorHandleAccesors_[descriptorHeapCBVSRVUAV_.Get()].GetGPUHandle(0));
+
+								auto loop = renderItems_.size() / PassData::NumThreads;
+								for (size_t i{}; i < loop; ++i)
+								{
+									const auto& renderItem = renderItems_[i + (threadIndex * loop)];
+
+									auto& mesh = renderItem.desc_.mesh_;
+									auto vb = mesh->GetVertexBufferView();
+									auto ib = mesh->GetIndexBufferView();
+									thisThreadCommandList->SetPipelineState(renderItem.desc_.pso_);
+
+									thisThreadCommandList->IASetVertexBuffers(0, 1, &vb);
+									thisThreadCommandList->IASetPrimitiveTopology(D3D12_PRIMITIVE_TOPOLOGY::D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+									//commandList_->DrawInstanced(3, 1, 0, 0);
+
+									if (ib.has_value())
+									{
+										thisThreadCommandList->IASetIndexBuffer(&ib.value());
+										thisThreadCommandList->DrawIndexedInstanced(mesh->ibDesc_->indexCount_, renderItem.visibleItemCount_, mesh->ibDesc_->startIndexLocation_, mesh->startVertexLocation_, 0);
+									}
+									else
+									{
+										thisThreadCommandList->DrawInstanced(mesh->vertexCount_, renderItem.visibleItemCount_, mesh->startVertexLocation_, 0);
+									}
+								}
+
+								//thisThreadCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentSwapChainBuffer(),
+								//	D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
+							},
+						};
+						std::for_each(renderPasses.begin(), renderPasses.end(), [this](auto& elem) { elem(); });
+					});
+			}
+
+			
+			auto endRenderPass = [this]()
+			{
+				auto& currentPassData = GetCurrentPassData();
+
+				//backbuffer transition
+				commandList_->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentSwapChainBuffer(),
+					D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
+
+				//execute
+				std::vector<ID3D12GraphicsCommandList*> commandLists;
+				
+				for (int i{}; i < PassData::NumThreads; ++i)
+				{
+					commandLists.push_back(currentPassData.multiThreadingData_->batchCommandLists_[i].Get());
+				}
+
+				commandLists.push_back(commandList_.Get());
+
+				auto afterExecution = [this, &currentPassData]()
+				{
+					currentPassData.fence_ = mainFenceValue_;
+					iDXGISwapChain_->Present(0, 0);
+					currentBackBufferIndex_ = (currentBackBufferIndex_ + 1) % SwapChainCount;
+				};
+				ExecuteCommandList(commandLists, fence_.Get(), commandQueue_.Get(), mainFenceValue_, false, afterExecution);
+			};
+			endRenderPass();
+		};
+
+		//multiThreadRender();
 	}
 
 	void DirectXToy::RenderScene()
@@ -579,7 +751,7 @@ namespace Toy
 	void DirectXToy::LoadRenderItem()
 	{
 		static constexpr int NumRenderItems = 4;
-		static constexpr int InstanceBufferSize = 2000;
+		static constexpr int InstanceBufferSize = 1;
 
 		auto buildRenderItem = [this]()
 		{
@@ -588,15 +760,17 @@ namespace Toy
 			InstancingRenderItem::Desc desc;
 			desc.pso_ = psoMap_[PSO::StaticMesh].Get();
 			desc.instanceBufferCount_ = InstanceBufferSize;
-
-			desc.mesh_ = &meshMap_["Box"];
-			renderItems_.push_back(desc);
-			desc.mesh_ = &meshMap_["Box"];
-			renderItems_.push_back(desc);
-			desc.mesh_ = &meshMap_["GeoSphere"];
-			renderItems_.push_back(desc);
-			desc.mesh_ = &meshMap_["GeoSphere"];
-			renderItems_.push_back(desc);
+			for (int i{}; i < 125; ++i)
+			{
+				desc.mesh_ = &meshMap_["Box"];
+				renderItems_.push_back(desc);
+				desc.mesh_ = &meshMap_["Box"];
+				renderItems_.push_back(desc);
+				desc.mesh_ = &meshMap_["GeoSphere"];
+				renderItems_.push_back(desc);
+				desc.mesh_ = &meshMap_["GeoSphere"];
+				renderItems_.push_back(desc);
+			}
 		};
 		buildRenderItem();
 
@@ -1626,3 +1800,31 @@ namespace Toy
 		viewDirty_ = true;
 	}
 }
+
+namespace Toy
+{
+	int DirectXToy::PassData::NumThreads = 8;
+
+	DirectXToy::PassData::MultiThreadingData::MultiThreadingData(ID3D12Device* device, ID3D12CommandQueue* commandQueue)
+		: device_{ device }, commandQueue_{ commandQueue }
+	{
+		batchCommandAllocators_.resize(NumThreads);
+		batchCommandLists_.resize(NumThreads);
+
+		for (int i{}; i < NumThreads; ++i)
+		{
+			//Create..
+
+			auto commandListType = D3D12_COMMAND_LIST_TYPE::D3D12_COMMAND_LIST_TYPE_DIRECT;
+
+			ASSERT_SUCCEEDED(device->CreateCommandAllocator(commandListType, IID_PPV_ARGS(&batchCommandAllocators_[i])));
+			D3D12_COMMAND_QUEUE_DESC queueDesc{};
+			queueDesc.NodeMask = 1;
+			queueDesc.Type = commandListType;
+			ASSERT_SUCCEEDED(device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&commandQueue_)));
+			ASSERT_SUCCEEDED(device->CreateCommandList(0, commandListType, batchCommandAllocators_[i].Get(), nullptr, IID_PPV_ARGS(&batchCommandLists_[i])));
+			batchCommandLists_[i]->Close();
+		}
+	}
+}
+
