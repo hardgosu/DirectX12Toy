@@ -461,6 +461,13 @@ namespace Toy
 				}
 
 				{
+					/*
+					Material materialData;
+					auto materialTransform = XMLoadFloat4x4(&materialData.materialTransform_);
+					XMStoreFloat4x4(&materialData.materialTransform_, XMMatrixTranspose(materialTransform));
+					materialData.normalMapIndex_ = 1;
+					currentPassData.materialBuffer_->CopyData(0, materialData);
+					*/
 				}
 
 				//const Material& forTest = *reinterpret_cast<Material*>(currentPassData.materialBuffer_->pMappedData_);
@@ -1069,7 +1076,6 @@ namespace Toy
 				"tileNormalMap",
 				"defaultDiffuseMap",
 				"defaultNormalMap",
-				"skyCubeMap",
 			};
 
 			std::vector<std::wstring> texFilenames =
@@ -1080,12 +1086,12 @@ namespace Toy
 				L"Textures/tile_nmap.dds",
 				L"Textures/white1x1.dds",
 				L"Textures/default_nmap.dds",
-				L"Textures/snowcube1024.dds",
 			};
 
 			ASSERT(texFilenames.size() == texNames.size());
-			CD3DX12_CPU_DESCRIPTOR_HANDLE hDescriptor(descriptorHeapCBVSRVUAV_->GetCPUDescriptorHandleForHeapStart());
-			auto srvDescriptorSize = descriptorHandleAccesors_[descriptorHeapCBVSRVUAV_.Get()].handleIncrementSize_;
+			auto& handleAccessor = descriptorHandleAccesors_[descriptorHeapCBVSRVUAV_.Get()];
+			CD3DX12_CPU_DESCRIPTOR_HANDLE hDescriptor = handleAccessor.GetCurrentAvailableCPUHandle();
+			auto srvDescriptorSize = handleAccessor.handleIncrementSize_;
 
 			for (size_t i{}; i < texNames.size(); ++i)
 			{
@@ -1111,21 +1117,44 @@ namespace Toy
 				hDescriptor.Offset(1, srvDescriptorSize);
 			}
 
+			std::vector<std::string> cubeMapNames =
+			{
+				"skyCubeMap",
+			};
+
+			std::vector<std::wstring> cubeMapFilenames =
+			{
+				L"Textures/snowcube1024.dds",
+			};
+
+			ASSERT(cubeMapFilenames.size() == cubeMapNames.size());
+
+			for (size_t i{}; i < cubeMapNames.size(); ++i)
+			{
+				auto& texture = textures_[cubeMapNames[i]] = Texture();
+				texture.name_ = cubeMapNames[i];
+				texture.filePath_ = cubeMapFilenames[i];
+
+				ASSERT_SUCCEEDED(CreateDDSTextureFromFile12(device_.Get(),
+					commandList_.Get(), texture.filePath_.c_str(),
+					texture.resource_, texture.uploadHeap_));
+
+				D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+				srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+				srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
+				srvDesc.Texture2D.MostDetailedMip = 0;
+				srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+				srvDesc.TextureCube.MostDetailedMip = 0;
+				srvDesc.TextureCube.MipLevels = texture.resource_->GetDesc().MipLevels;
+				srvDesc.TextureCube.ResourceMinLODClamp = 0.0f;
+				srvDesc.Format = texture.resource_->GetDesc().Format;
+				device_->CreateShaderResourceView(texture.resource_.Get(), &srvDesc, hDescriptor);
+
+				hDescriptor.Offset(1, srvDescriptorSize);
+			}
+
 			commonPassData_.cubemapSRVIndex_ = texNames.size();
-
-			auto& skyCubeMap = textures_["skyCubeMap"].resource_;
-			D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-			srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-			srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
-			srvDesc.Texture2D.MostDetailedMip = 0;
-			srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
-			srvDesc.TextureCube.MostDetailedMip = 0;
-			srvDesc.TextureCube.MipLevels = skyCubeMap->GetDesc().MipLevels;
-			srvDesc.TextureCube.ResourceMinLODClamp = 0.0f;
-			srvDesc.Format = skyCubeMap->GetDesc().Format;
-			device_->CreateShaderResourceView(skyCubeMap.Get(), &srvDesc, hDescriptor);
-
-			hDescriptor.Offset(1, srvDescriptorSize);
+			handleAccessor.SaveLastHandle(hDescriptor);
 		};
 		version3();
 
@@ -1411,7 +1440,6 @@ namespace Toy
 		ASSERT(ptrDiff >= 0 && ptrDiff % handleIncrementSize_ == 0);
 
 		currentAvailableIndex_ += (ptrDiff / handleIncrementSize_);
-
 	}
 	void DirectXToy::DescriptorHandleAccesor::SaveLastHandle(const CD3DX12_GPU_DESCRIPTOR_HANDLE& gpuHandle)
 	{
