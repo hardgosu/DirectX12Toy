@@ -482,7 +482,7 @@ void DisplayHierachy::DisplaySkinDeformations(FbxMesh* pfbxMesh, std::vector<Ski
 		fbxmtxVertextToLinkNode = fbxmtxClusterLinkTransform.Inverse() * fbxmtxClusterTransform * fbxmtxGeometryOffset;
 		//fbxmtxVertextToLinkNode = fbxmtxGeometryOffset.Transpose() * fbxmtxClusterTransform.Transpose() * fbxmtxClusterLinkTransform.Inverse().Transpose();
 
-		auto a = fbxmtxVertextToLinkNode;
+		const auto& a = fbxmtxVertextToLinkNode;
 		//a.SetIdentity();
 
 		XMFLOAT4X4 offset
@@ -495,13 +495,11 @@ void DisplayHierachy::DisplaySkinDeformations(FbxMesh* pfbxMesh, std::vector<Ski
 		};
 
 		boneOffsets.emplace_back(offset);
-
-
 	}
 
 
 	int* pnBonesPerVertex = new int[nControlPoints];
-	::memset(pnBonesPerVertex, 0, nControlPoints * sizeof(int));
+	std::memset(pnBonesPerVertex, 0, nControlPoints * sizeof(int));
 	for (int j = 0; j < nClusters; j++)
 	{
 		FbxCluster* pfbxCluster = pfbxSkinDeformer->GetCluster(j);
@@ -670,7 +668,6 @@ void DisplayHierachy::GetBoneNames(FbxNode* startNode, std::vector<std::vector<s
 		GetBoneNames(startNode->GetChild(i), output);
 	}
 
-
 }
 
 
@@ -693,13 +690,10 @@ int DisplayHierachy::GetSkinnedMeshCount(FbxNode* startNode, bool firstGeneratio
 			int nSkinDeformers = pfbxMesh->GetDeformerCount(FbxDeformer::eSkin);
 			if (nSkinDeformers > 0)
 			{
-
 				++skinnedMeshCount;
 			}
-
 		}
 	}
-
 
 	int nChilds = startNode->GetChildCount();
 
@@ -707,7 +701,6 @@ int DisplayHierachy::GetSkinnedMeshCount(FbxNode* startNode, bool firstGeneratio
 	{
 		GetSkinnedMeshCount(startNode->GetChild(i), false);
 	}
-
 
 	return skinnedMeshCount;
 }
@@ -727,21 +720,16 @@ void DisplayHierachy::GetMeshes(FbxNode* pfbxNode, std::vector<std::vector<Skinn
 				int nSkinDeformers = pfbxMesh->GetDeformerCount(FbxDeformer::eSkin);
 				if (nSkinDeformers > 0)
 				{
-
-
 					vertexBuffers.emplace_back();
 
 					indexBuffers.emplace_back();
 
 					DisplayMesh(pfbxMesh, vertexBuffers.back(), indexBuffers.back(), doRootTransform);
-
 				}
 
 			}
 			else
 			{
-
-
 				vertexBuffers.emplace_back();
 
 				indexBuffers.emplace_back();
@@ -750,25 +738,17 @@ void DisplayHierachy::GetMeshes(FbxNode* pfbxNode, std::vector<std::vector<Skinn
 			}
 		}
 	}
-
-
 	int nChilds = pfbxNode->GetChildCount();
 
 	for (int i{}; i < nChilds; ++i)
 	{
 		GetMeshes(pfbxNode->GetChild(i), vertexBuffers, indexBuffers, isOnlySkinned, doRootTransform);
 	}
-
 }
 
 void DisplayHierachy::GetHierarchies(FbxNode* pfbxNode, const std::vector<std::vector<std::string>>& boneNameLists, std::vector<std::vector<int>>& hierarchies)
 {
-
-
-
 	int nChilds = pfbxNode->GetChildCount();
-
-
 	int k{};
 
 	for (int j{}; j < boneNameLists.size(); ++j)
@@ -778,11 +758,8 @@ void DisplayHierachy::GetHierarchies(FbxNode* pfbxNode, const std::vector<std::v
 		for (int i{}; i < nChilds; ++i)
 		{
 			GetHierarchies(pfbxNode->GetChild(i), &nFrame, -1, boneNameLists[j], hierarchies.back());
-
 		}
 	}
-
-
 }
 
 
@@ -790,12 +767,9 @@ void DisplayHierachy::GetHierarchies(FbxNode* pfbxNode, int* pnFrame, int parent
 {
 	int nChilds = pfbxNode->GetChildCount();
 	//std::cout << pfbxNode->GetName() << std::endl;
-
-
 	//if (boneNameList.count(pfbxNode->GetName()) > 0)
 	if (std::find(boneNameList.begin(), boneNameList.end(), pfbxNode->GetName()) != boneNameList.end())
 	{
-
 		int current = *pnFrame;
 		(*pnFrame)++;
 
@@ -814,7 +788,6 @@ void DisplayHierachy::GetHierarchies(FbxNode* pfbxNode, int* pnFrame, int parent
 			GetHierarchies(pfbxNode->GetChild(i), pnFrame, parent, boneNameList, hierarchy);
 
 		}
-
 	}
 }
 
@@ -834,7 +807,6 @@ void DisplayHierachy::DisplayHierarchy(FbxScene* pfbxScene, std::vector<SkinnedV
 
 		nFrame = 0;
 	}
-
 }
 
 void DisplayHierachy::GetOffsets(FbxNode* pfbxNode, std::vector<std::vector<SkinnedVertex>>& vertexBuffers,
@@ -856,16 +828,13 @@ void DisplayHierachy::GetOffsets(FbxNode* pfbxNode, std::vector<std::vector<Skin
 			int nSkinDeformers = pfbxMesh->GetDeformerCount(FbxDeformer::eSkin);
 			if (nSkinDeformers > 0)
 			{
-
 				boneOffsets.emplace_back();
 				DisplaySkinDeformations(pfbxMesh, vertexBuffers[a], boneOffsets.back());
 
 				++a;
 			}
-
 		}
 	}
-
 
 	int nChilds = pfbxNode->GetChildCount();
 
@@ -873,8 +842,6 @@ void DisplayHierachy::GetOffsets(FbxNode* pfbxNode, std::vector<std::vector<Skin
 	{
 		GetOffsets(pfbxNode->GetChild(i), vertexBuffers, boneOffsets, false);
 	}
-
-
 }
 
 
@@ -883,14 +850,11 @@ void DisplayHierachy::GetOffsets(FbxNode* pfbxNode, std::vector<std::vector<Skin
 void DisplayHierachy::DisplayHierarchy(FbxNode* pfbxNode, int* pnFrame, int parent, std::vector<SkinnedVertex>& vertexBuffer,
 	std::vector<unsigned int>& indexBuffer, std::vector<int>& hierachy, std::vector<XMFLOAT4X4>& boneOffsets, std::vector<std::string>& boneNameList)
 {
-
-
 	int nChilds = pfbxNode->GetChildCount();
 	//std::cout << pfbxNode->GetName() << std::endl;
 	//if (boneNameList.count(pfbxNode->GetName()) > 0)
 	if (std::find(boneNameList.begin(), boneNameList.end(), pfbxNode->GetName()) != boneNameList.end())
 	{
-
 		int current = *pnFrame;
 		(*pnFrame)++;
 
@@ -914,7 +878,6 @@ void DisplayHierachy::DisplayHierarchy(FbxNode* pfbxNode, int* pnFrame, int pare
 
 				DisplayMesh(pfbxMesh, vertexBuffer, indexBuffer, false);
 
-
 				//중복없는 리스트
 				FbxSkin* pfbxSkinDeformer = (FbxSkin*)pfbxMesh->GetDeformer(0, FbxDeformer::eSkin);
 				int nClusters = pfbxSkinDeformer->GetClusterCount();
@@ -928,28 +891,17 @@ void DisplayHierachy::DisplayHierarchy(FbxNode* pfbxNode, int* pnFrame, int pare
 			}
 		}
 
-
-
 		for (int i = 0; i < nChilds; i++)
 		{
-
-
 			DisplayHierarchy(pfbxNode->GetChild(i), pnFrame, current, vertexBuffer, indexBuffer, hierachy, boneOffsets, boneNameList);
-
-
 		}
 	}
 	else
 	{
 		for (int i = 0; i < nChilds; i++)
 		{
-
-
 			DisplayHierarchy(pfbxNode->GetChild(i), pnFrame, parent, vertexBuffer, indexBuffer, hierachy, boneOffsets, boneNameList);
-
-
 		}
-
 	}
 }
 
@@ -1120,11 +1072,8 @@ void DisplayHierachy::GetKeyFrameMatrixGlobalNonSkinned(FbxNode* startNode, std:
 
 	for (int i{}; i < nChilds; ++i)
 	{
-
 		GetKeyFrameMatrixGlobalNonSkinned(startNode->GetChild(i), amazing.back());
-
 	}
-
 }
 
 void DisplayHierachy::GetKeyFrameMatrixGlobalNonSkinned(FbxNode* startNode, std::vector< std::vector<FbxAMatrix>>& amazing)
@@ -1153,72 +1102,40 @@ void DisplayHierachy::GetKeyFrameMatrixGlobalNonSkinned(FbxNode* startNode, std:
 		float test = difference.GetSecondDouble();
 		FbxAMatrix keyFrameMatrix;
 
-
-
-
 		int lerpCount = difference.GetSecondDouble() * 60;
 
-
-
-
 		amazing.emplace_back();
-
-
-
-
 
 		for (int l{}; l < lerpCount; ++l)
 		{
 			keyFrameMatrix = startNode->EvaluateGlobalTransform(startTime + (difference / lerpCount) * l);
 			amazing.back().push_back(keyFrameMatrix);
 		}
-
-
-
-
-
-
-
 	}
-
-
-
-
 
 	int nChilds = startNode->GetChildCount();
 	for (int i{}; i < nChilds; ++i)
 	{
-
 		GetKeyFrameMatrixGlobalNonSkinned(startNode->GetChild(i), amazing);
-
 	}
-
 }
 
 
 
 void DisplayHierachy::GetKeyFrameMatrixGlobal(FbxNode* startNode, const std::vector<std::vector<std::string>>& boneNameList, std::vector<std::vector< std::vector<FbxAMatrix>>>& amazing)
 {
-
 	int nChilds = startNode->GetChildCount();
-
 
 	amazing.emplace_back();
 
 	for (int i{}; i < nChilds; ++i)
 	{
-
 		GetKeyFrameMatrixGlobal(startNode->GetChild(i), boneNameList[0], amazing.back());
-
 	}
-
-
-
 
 }
 void DisplayHierachy::GetKeyFrameMatrixGlobal(FbxNode* startNode, const std::vector<std::string>& boneNameList, std::vector< std::vector<FbxAMatrix>>& amazing)
 {
-
 	FbxNodeAttribute* pfbxNodeAttribute = startNode->GetNodeAttribute();
 	if (pfbxNodeAttribute && (pfbxNodeAttribute->GetAttributeType() == FbxNodeAttribute::eMesh))
 	{
@@ -1247,8 +1164,6 @@ void DisplayHierachy::GetKeyFrameMatrixGlobal(FbxNode* startNode, const std::vec
 
 		for (int i = 0; i < nSkinDeformers; i++)
 		{
-
-
 			FbxSkin* pfbxSkinDeformer = (FbxSkin*)pfbxMesh->GetDeformer(i, FbxDeformer::eSkin);
 			int nClusters = pfbxSkinDeformer->GetClusterCount();
 
@@ -1269,48 +1184,31 @@ void DisplayHierachy::GetKeyFrameMatrixGlobal(FbxNode* startNode, const std::vec
 				if (!flag)
 					break;
 
-
-
 				int lerpCount = difference.GetSecondDouble() * 60;
 
 
 				for (int j = 0; j < nClusters; j++)
 				{
-
-
 					FbxCluster* pfbxCluster = pfbxSkinDeformer->GetCluster(j);
 					if (!pfbxCluster->GetLink()) continue;
 
 					amazing.emplace_back();
-
-
-
-
 
 					for (int l{}; l < lerpCount; ++l)
 					{
 						keyFrameMatrix = pfbxCluster->GetLink()->EvaluateGlobalTransform(startTime + (difference / lerpCount) * l);
 						amazing.back().push_back(keyFrameMatrix);
 					}
-
-
 				}
 			}
 		}
 	}
 
-
-
-
-
 	int nChilds = startNode->GetChildCount();
 	for (int i{}; i < nChilds; ++i)
 	{
-
 		GetKeyFrameMatrixGlobal(startNode->GetChild(i), boneNameList, amazing);
-
 	}
-
 }
 
 void DisplayHierachy::GetKeyFrameMatrixLocal(FbxNode* startNode, const std::vector<std::vector<std::string>>& boneNameList, std::vector<std::vector< std::vector<FbxAMatrix>>>& amazing)
@@ -1323,13 +1221,8 @@ void DisplayHierachy::GetKeyFrameMatrixLocal(FbxNode* startNode, const std::vect
 
 		for (int i{}; i < nChilds; ++i)
 		{
-
 			GetKeyFrameMatrixLocal(startNode->GetChild(i), boneNameList[j], amazing.back());
-
 		}
-
-
-
 	}
 }
 
@@ -1341,14 +1234,10 @@ void DisplayHierachy::GetKeyFrameMatrixLocal(FbxNode* startNode, const std::vect
 	{
 		FbxMesh* pfbxMesh = startNode->GetMesh();
 
-
-
 		int nSkinDeformers = pfbxMesh->GetDeformerCount(FbxDeformer::eSkin);
 
 		for (int i = 0; i < nSkinDeformers; i++)
 		{
-
-
 			FbxSkin* pfbxSkinDeformer = (FbxSkin*)pfbxMesh->GetDeformer(i, FbxDeformer::eSkin);
 			int nClusters = pfbxSkinDeformer->GetClusterCount();
 
@@ -1369,15 +1258,8 @@ void DisplayHierachy::GetKeyFrameMatrixLocal(FbxNode* startNode, const std::vect
 				if (!flag)
 					break;
 
-
-
-
-
-
 				for (int j = 0; j < nClusters; j++)
 				{
-
-
 					FbxCluster* pfbxCluster = pfbxSkinDeformer->GetCluster(j);
 					if (!pfbxCluster->GetLink()) continue;
 
@@ -1416,9 +1298,7 @@ void DisplayHierachy::GetKeyFrameMatrixLocal(FbxNode* startNode, const std::vect
 	int nChilds = startNode->GetChildCount();
 	for (int i{}; i < nChilds; ++i)
 	{
-
 		GetKeyFrameMatrixLocal(startNode->GetChild(i), boneNameList, amazing);
-
 	}
 
 
